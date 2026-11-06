@@ -8,13 +8,15 @@ const MAX_RATE = 12; // 초당 메시지
 const ALLOW = ["https://seangold8888.github.io", "http://localhost:5178"];
 
 const clamp = (v, lo, hi, d) => (typeof v === "number" && Number.isFinite(v)) ? Math.min(hi, Math.max(lo, v)) : d;
+// 월급(1분 가격)은 받지도 보내지도 않는다. 머문 시간(분)과 한숨 단계만.
 function clean(q, prev) {
   return {
     x: clamp(q.x, 0, 1, prev?.x ?? 0.5),
     d: clamp(q.d, 0, 1, prev?.d ?? 0.5),
-    p: Math.round(clamp(q.p, 1, 100000, prev?.p ?? 172)),
+    m: Math.round(clamp(q.m, 0, 1440, prev?.m ?? 0)),
     lk: Math.round(clamp(q.lk, 0, 5, prev?.lk ?? 0)),
     st: q.st === "in" ? 1 : 0,
+    e: Math.round(clamp(q.e, 0, 3, 0)),
   };
 }
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
@@ -111,7 +113,7 @@ export class Station {
     for (const room of this.pending) {
       const socks = this.live(room);
       const list = [];
-      for (const w of socks) { const a = w.deserializeAttachment(); if (a.s) list.push([a.id, a.s.x, a.s.d, a.s.p, a.s.lk, a.s.st]); }
+      for (const w of socks) { const a = w.deserializeAttachment(); if (a.s) list.push([a.id, a.s.x, a.s.d, a.s.m, a.s.lk, a.s.st, a.s.e]); }
       const out = JSON.stringify({ t: "all", n: total, list });
       for (const w of socks) { try { w.send(out); } catch {} }
     }
