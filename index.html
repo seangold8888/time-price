@@ -263,8 +263,6 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     g.fillStyle = "#fff"; g.font = '13px "Black Han Sans", sans-serif'; g.textAlign = "center"; g.fillText("주판", 78, 151);
     g.fillStyle = C.ink; g.font = '30px "Black Han Sans", sans-serif'; g.textAlign = "left"; g.fillText("내시간역", 106, 146);
     g.font = '600 10px "IBM Plex Mono", monospace'; g.fillStyle = "#5c6770"; g.fillText("TIME-PRICE STATION", 108, 167);
-    g.fillStyle = "#fff"; g.font = '700 9px "IBM Plex Sans KR", sans-serif';
-    g.textAlign = "left"; g.fillText("◀ 출근역", 48, 183); g.textAlign = "right"; g.fillText("퇴근역 ▶", 312, 183);
     g.restore();
     // 선로
     g.fillStyle = "#2b2f33"; g.fillRect(0, 386, BW, 40);
@@ -274,6 +272,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     // 스크린도어
     drawPSD(tr.door);
     g.restore();
+    drawDirSigns(now);
     // 승강장 바닥 (넓다)
     const fl = g.createLinearGradient(0, PT, 0, H); fl.addColorStop(0, C.floor); fl.addColorStop(1, C.floor2);
     g.fillStyle = fl; g.fillRect(0, PT, W, H - PT);
@@ -284,6 +283,62 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     g.strokeStyle = "rgba(0,0,0,.06)"; g.lineWidth = 1;
     for (let y = PT + 50; y < H; y += 46) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
     return tr;
+  }
+
+  // ---------- 출근·퇴근 시계 (9시 출근, 점심 12~13시, 18시 퇴근, 주말 쉼) ----------
+  const START_H = 9, END_H = 18;
+  function nextWorkStart(now) {
+    const d = new Date(now); d.setHours(START_H, 0, 0, 0);
+    if (d.getTime() <= now) d.setDate(d.getDate() + 1);
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+    return d.getTime();
+  }
+  function schedule(now) {
+    const d = new Date(now), day = d.getDay();
+    const s = new Date(now); s.setHours(START_H, 0, 0, 0);
+    const e = new Date(now); e.setHours(END_H, 0, 0, 0);
+    const l1 = new Date(now); l1.setHours(12, 0, 0, 0);
+    const l2 = new Date(now); l2.setHours(13, 0, 0, 0);
+    if (day === 0 || day === 6) return { mode: "weekend", toWork: nextWorkStart(now) - now };
+    if (now < s.getTime()) return { mode: "before", toWork: s.getTime() - now };
+    if (now >= e.getTime()) return { mode: "after", toWork: nextWorkStart(now) - now, sinceOff: now - e.getTime() };
+    const lunch = Math.max(0, Math.min(now, l2.getTime()) - l1.getTime());
+    const workedMs = now - s.getTime() - Math.min(lunch, 3600000);
+    return { mode: now >= l1.getTime() && now < l2.getTime() ? "lunch" : "work", toOff: e.getTime() - now, workedMs };
+  }
+  const hms = ms => {
+    let s = Math.max(0, Math.floor(ms / 1000)); const dd = Math.floor(s / 86400); s %= 86400;
+    const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+    return (dd ? dd + "일 " : "") + h + ":" + String(m).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+  };
+
+  function drawDirSigns(now) {
+    const sc = schedule(now);
+    const blink = Math.floor(now / 500) % 2 === 0;
+    // 표지판: 위 = 역 이름(크게), 가운데 = 무엇까지, 아래 = 초 단위 시계
+    const sign = (x, w, title, label, time, timeColor) => {
+      g.fillStyle = "#1f6f3e"; roundRect(x, 98, w, 70, 8); g.fill();
+      g.fillStyle = C.line; roundRect(x + 2, 100, w - 4, 28, 7); g.fill();
+      g.textBaseline = "middle"; g.textAlign = "center";
+      g.fillStyle = "#fff"; g.font = '18px "Black Han Sans", sans-serif'; g.fillText(title, x + w / 2, 115);
+      g.fillStyle = "#bfe6cc"; g.font = '700 10px "IBM Plex Sans KR", sans-serif'; g.fillText(label, x + w / 2, 139);
+      g.fillStyle = timeColor; g.font = `600 ${time.length > 9 ? 11 : 14}px "IBM Plex Mono", monospace`; g.fillText(time, x + w / 2, 156);
+    };
+    const calm = "#ffffff", hot = blink ? "#ffd2c8" : "#ff7a63";
+    let L, R;
+    if (sc.mode === "work" || sc.mode === "lunch") {
+      L = ["출근한 지", hms(sc.workedMs), calm];
+      R = ["퇴근까지", hms(sc.toOff), sc.toOff < 3600000 ? hot : "#ffe08a"];
+    } else if (sc.mode === "after") {
+      L = ["다음 출근까지", hms(sc.toWork), sc.toWork < 3 * 3600000 ? hot : calm];
+      R = ["퇴근한 지", hms(sc.sinceOff), "#bff5cf"];
+    } else {
+      L = ["출근까지", hms(sc.toWork), sc.toWork < 3600000 ? hot : calm];
+      R = [sc.mode === "weekend" ? "오늘은" : "아직", sc.mode === "weekend" ? "쉬는 날" : "출근 전", "#bff5cf"];
+    }
+    sign(4, 84, "◀ 출근역", L[0], L[1], L[2]);
+    sign(W - 88, 84, "퇴근역 ▶", R[0], R[1], R[2]);
+    return sc;
   }
 
   function drawTrain(x, door, now) {
@@ -435,6 +490,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 
   // ---------- 반복 ----------
   let last = performance.now(), lastSent = 0, prevPhase = "";
+  let coins = [], lastCoinSec = 0, miss = null;
   function frame(t) {
     const dt = Math.min(64, t - last); last = t;
     const now = Date.now();
@@ -461,16 +517,63 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     people.sort((a, b) => a.d - b.d);
     for (const p of people) if (p.a > 0) drawPerson(p.x, p.d, p.lk, p.p, p.me, p.walk, t, p.a);
 
-    // 접속 인원
+    // 내 머리 위: 오늘 번 돈이 1초마다 오른다 (근무 시간에만)
+    const sc = schedule(now);
+    const perSec = hourly() / 3600;
+    const meP = people.find(p => p.me);
+    if (meP && meP.a > 0) {
+      const s = depthS(meP.d), topY = depthY(meP.d) - 112 * s;
+      if (sc.mode === "work" || sc.mode === "lunch") {
+        const earned = sc.workedMs / 3600000 * hourly();
+        const txt = "오늘 " + comma(earned) + "원";
+        g.font = `700 ${11 * s}px "IBM Plex Sans KR", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+        const w = g.measureText(txt).width + 14 * s;
+        g.fillStyle = "rgba(255,224,138,.95)"; roundRect(meP.x - w / 2, topY, w, 17 * s, 8.5 * s); g.fill();
+        g.fillStyle = C.night; g.fillText(txt, meP.x, topY + 8.8 * s);
+        const sec = Math.floor(now / 1000);
+        if (sc.mode === "work" && sec !== lastCoinSec) {
+          lastCoinSec = sec;
+          coins.push({ x: meP.x + (Math.random() * 24 - 12), y: topY - 4, t: 0 });
+        }
+      }
+      if (miss) miss.x = meP.x, miss.y = topY - 26;
+    }
+    // 튀어 오르는 "+2.9원"
+    const coinTxt = "+" + (perSec < 10 ? perSec.toFixed(1) : comma(perSec)) + "원";
+    g.font = '600 11px "IBM Plex Mono", monospace'; g.textAlign = "center";
+    for (const c of coins) { c.t += dt; c.y -= dt * 0.028; g.globalAlpha = Math.max(0, 1 - c.t / 1100); g.fillStyle = "#ffcf3f"; g.fillText(coinTxt, c.x, c.y); }
+    g.globalAlpha = 1;
+    while (coins.length && coins[0].t > 1100) coins.shift();
+    // 열차를 놓쳤을 때
+    if (miss) {
+      miss.t += dt;
+      const a = Math.max(0, Math.min(1, (2800 - miss.t) / 600));
+      g.globalAlpha = a; g.font = '700 12px "IBM Plex Sans KR", sans-serif';
+      const w = g.measureText(miss.text).width + 18;
+      const mx = Math.min(W - w / 2 - 6, Math.max(w / 2 + 6, miss.x)), my = miss.y - miss.t * 0.01;
+      g.fillStyle = "#c8372b"; roundRect(mx - w / 2, my - 11, w, 22, 11); g.fill();
+      g.fillStyle = "#fff"; g.fillText(miss.text, mx, my + 0.5);
+      g.globalAlpha = 1;
+      if (miss.t > 2800) miss = null;
+    }
+
+    // 접속 인원 (바닥 왼쪽 위)
     const n = others.size + 1;
     g.font = '700 11px "IBM Plex Sans KR", sans-serif'; g.textAlign = "left"; g.textBaseline = "middle";
     const label = room ? (n === 1 ? "지금 승강장에 나 혼자" : `지금 승강장 ${n}명`) : "";
-    if (label) { const w = g.measureText(label).width; g.fillStyle = "rgba(17,22,28,.72)"; roundRect(12, 94, w + 20, 22, 11); g.fill(); g.fillStyle = "#fff"; g.fillText(label, 22, 105.5); }
+    if (label) { const w = g.measureText(label).width; g.fillStyle = "rgba(17,22,28,.62)"; roundRect(10, PT + 38, w + 20, 22, 11); g.fill(); g.fillStyle = "#fff"; g.fillText(label, 20, PT + 49.5); }
 
     // 열차 상태 변화
     if (tr.phase !== prevPhase) {
       if (tr.phase === "open" && me.st === "wait") $("board").hidden = false;
-      if (tr.phase === "close") { $("board").hidden = true; if (me.st === "going") me.st = "wait"; }
+      if (tr.phase === "close") {
+        $("board").hidden = true;
+        if (me.st === "going") me.st = "wait";
+        if (me.st === "wait" && prevPhase === "open") {
+          const waitSec = CYCLE - CLOSE + ARRIVE; // 다음 열차 문 열릴 때까지
+          miss = { t: 0, x: me.x * W, y: 300, text: `놓쳤다! 다음 열차까지 ${waitSec}초 = ${comma(waitSec * hourly() / 3600)}원` };
+        }
+      }
       if (tr.phase === "leave" && me.st === "in") {
         const earned = DAY_H * hourly();
         toast(`퇴근 완료!<br>오늘 <b>${comma(earned)}원</b> 벌었어요`, 3200);
