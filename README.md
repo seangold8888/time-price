@@ -2,7 +2,8 @@
 
 월급을 넣으면 커피·치킨·아이폰·서울 아파트가 내 노동으로 몇 분·며칠·몇 년인지 보여주는 페이지. 주판(ZOOPAN) 자매품.
 
-- 페이지: `index.html` (빌드 없음, 파일 하나)
+- 첫 화면: `index.html` = 내시간역 승강장(공간형, 실시간 접속은 `worker/` Cloudflare Worker)
+- 계산기: `calc.html` (예전 첫 화면)
 - 가격표: `prices.json`
 - 갱신: `node update-prices.mjs`
   - 자동: 서울 아파트 평균 매매가(KB 주간), 서울 짜장면 평균(참가격 월간)

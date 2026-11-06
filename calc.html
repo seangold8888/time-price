@@ -1,0 +1,440 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="월급을 넣으면 커피·치킨·아이폰·서울 아파트가 내 노동 몇 분·며칠·몇 년인지 보여줘요.">
+<meta property="og:title" content="내 시간의 가격">
+<meta property="og:description" content="내 1분은 얼마일까? 아메리카노는 내 노동 몇 분일까?">
+<title>내 시간의 가격</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* 레이아웃: 폰 폭 한 줄 세로. 입력 없이 열자마자 결과. 출퇴근 타임카드(카드 스톡 + 남색 잉크 + 빨간 도장) */
+:root {
+  --paper: #e9edf1;
+  --card: #fbfcfd;
+  --ink: #1b2938;
+  --muted: #5a6979;
+  --rule: #c7d0da;
+  --stamp: #bf3a2d;
+  --accent: #2d5b88;
+  --accent-ink: #ffffff;
+  --display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f151c; --card: #17202a; --ink: #e4eaf0; --muted: #92a0af;
+    --rule: #2a3644; --stamp: #ec6d5f; --accent: #82acd8; --accent-ink: #0f151c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f151c; --card: #17202a; --ink: #e4eaf0; --muted: #92a0af;
+  --rule: #2a3644; --stamp: #ec6d5f; --accent: #82acd8; --accent-ink: #0f151c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap {
+  max-width: 480px;
+  margin: 0 auto;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.brand b { font-family: var(--display); font-weight: 400; font-size: 15px; letter-spacing: .06em; }
+.brand span { font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+
+/* 머리: 1분 값 + 오늘 번 돈 */
+.hero { display: flex; flex-direction: column; gap: 6px; }
+.hero .eyebrow { font-size: 13px; color: var(--muted); }
+.hero h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(40px, 13vw, 58px);
+  line-height: 1.05;
+  letter-spacing: -.01em;
+}
+.hero h1 em { font-style: normal; color: var(--stamp); }
+.ticker { margin-top: 8px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.ticker .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--stamp); flex: none; }
+.ticker.live .dot { animation: blink 1.2s steps(2, start) infinite; }
+.ticker strong { color: var(--ink); font-weight: 600; }
+@keyframes blink { to { visibility: hidden; } }
+
+/* 월급 슬라이더 (선택 사항) */
+.dial {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 14px 16px 12px 34px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.dial::before {
+  content: "";
+  position: absolute; left: 12px; top: 12px; bottom: 12px; width: 8px;
+  background: radial-gradient(circle, var(--paper) 3px, transparent 3.5px) 0 0 / 8px 22px repeat-y;
+}
+.dial .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.dial .top span { font-size: 13px; color: var(--muted); }
+.dial .top b { font: 600 20px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+.dial .hint { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.dial .hint button {
+  font: 500 12px var(--body); color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.dial .hint button[hidden] { display: none; }
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 36px; background: transparent; margin: 0; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track { height: 4px; background: var(--rule); border-radius: 2px; }
+input[type="range"]::-moz-range-track { height: 4px; background: var(--rule); border-radius: 2px; }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 28px; height: 28px; margin-top: -12px;
+  border-radius: 50%; background: var(--card); border: 3px solid var(--stamp);
+}
+input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--card); border: 3px solid var(--stamp); }
+input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* 가격표 */
+.sec h2 { margin: 0 0 4px; font-family: var(--display); font-weight: 400; font-size: 24px; }
+.sec > p { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.list { display: flex; flex-direction: column; border-top: 2px solid var(--ink); }
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid var(--rule);
+}
+.row .name { font-weight: 500; font-size: 15px; min-width: 0; }
+.row .price { font: 500 12px var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); overflow-wrap: anywhere; }
+.stamp {
+  grid-row: 1 / span 2; grid-column: 2; justify-self: end;
+  font-family: var(--display); font-size: 19px; color: var(--stamp);
+  border: 2px solid var(--stamp); border-radius: 4px; padding: 2px 9px;
+  transform: rotate(-3deg); white-space: nowrap; background: transparent; cursor: pointer;
+  transition: transform .15s ease;
+}
+.stamp:hover { transform: rotate(-1deg) scale(1.04); }
+.stamp:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.stamp small { display: block; font-family: var(--body); font-size: 10px; letter-spacing: .04em; line-height: 1.1; text-align: center; }
+.stamp.pop { animation: pop .35s ease; }
+@keyframes pop { 0% { transform: rotate(-3deg) scale(1.25); } 100% { transform: rotate(-3deg) scale(1); } }
+
+.rev { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rev div { background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rev span { font-size: 12px; color: var(--muted); }
+.rev b { font: 600 17px/1.3 var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+.share { display: flex; flex-direction: column; gap: 10px; }
+.share img { width: 100%; max-width: 100%; border: 1px solid var(--rule); border-radius: 4px; display: block; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn {
+  font: 700 14px var(--body); color: var(--accent-ink); background: var(--accent);
+  border: 0; border-radius: 4px; padding: 9px 14px; cursor: pointer; white-space: nowrap;
+}
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toast { font-size: 13px; color: var(--accent); min-height: 1.2em; overflow-wrap: anywhere; }
+footer { font-size: 12px; color: var(--muted); line-height: 1.6; border-top: 1px solid var(--rule); padding-top: 14px; }
+footer p { margin: 0 0 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker.live .dot, .stamp.pop { animation: none; }
+  .stamp { transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <div class="brand"><b>주판 ZOOPAN</b><span>세상 모든 것을 숫자로</span></div>
+
+  <section class="hero">
+    <div class="eyebrow" id="who">최저시급으로 일하면</div>
+    <h1>내 1분은<br><em id="perMin" class="num">172원</em></h1>
+    <div class="ticker" id="ticker" aria-live="off"><span class="dot"></span><span id="tickerText">오늘 번 돈 계산 중</span></div>
+  </section>
+
+  <section class="dial" aria-label="월급 조정">
+    <div class="top"><span id="dialLabel">월급 (세전)</span><b id="payText">2,156,880원</b></div>
+    <input type="range" id="pay" min="1000000" max="10000000" step="10000" value="2156880" aria-label="월급, 세금 떼기 전">
+    <div class="hint"><span id="dialHint">밀어서 내 월급에 맞춰 보세요</span><button type="button" id="resetBtn" hidden>최저임금으로</button></div>
+  </section>
+
+  <section class="sec" aria-labelledby="listTitle">
+    <h2 id="listTitle">이건 내 시간으로 얼마일까</h2>
+    <p>도장을 누르면 공유 카드가 만들어져요. <span id="asOf">가격은 11월 6일 기준이에요.</span></p>
+    <div class="list" id="list"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="revTitle">
+    <h2 id="revTitle">거꾸로, 내 시간은 얼마</h2>
+    <div class="rev" id="rev"></div>
+  </section>
+
+  <section class="sec share" aria-labelledby="shareTitle">
+    <h2 id="shareTitle">공유 카드</h2>
+    <img id="shareImg" alt="공유 카드 미리보기" width="1080" height="1350">
+    <div class="actions">
+      <button class="btn" type="button" id="copyBtn">문구 복사</button>
+      <button class="btn ghost" type="button" id="nextBtn">다른 항목으로</button>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+  </section>
+
+  <footer>
+    <p>계산은 이 기기 안에서만 하고 어디에도 보내지 않아요.</p>
+    <p>시급 = 월급 ÷ 209시간(주 40시간 + 주휴, 법정 월 소정근로시간). 하루 = 8시간, 한 달 = 209시간 기준. 2026년 최저시급 10,320원, 월 환산 2,156,880원. 오늘 번 돈은 9시 출근·12~13시 점심 기준이에요.</p>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const MIN_WAGE = 10320;          // 2026년 최저시급
+  const MONTH_H = 209;             // 법정 월 소정근로시간(주휴 포함)
+  const MIN_MONTH = MIN_WAGE * MONTH_H; // 2,156,880원
+  const DAY_H = 8, START = 9;
+  // 최신 가격은 prices.json (update-prices.mjs가 갱신). 아래는 파일을 못 읽을 때 쓰는 2026-11-06 확인값.
+  let UPDATED = "2026-11-06";
+  let ITEMS = [
+    { name: "지하철 한 번", price: 1550, src: "서울 기본요금, 교통카드" },
+    { name: "아메리카노 한 잔", price: 4700, src: "스타벅스 톨" },
+    { name: "짜장면 한 그릇", price: 7808, src: "서울 평균, 참가격 26년 9월" },
+    { name: "넷플릭스 한 달", price: 13500, src: "스탠다드" },
+    { name: "치킨 한 마리", price: 23000, src: "교촌 허니콤보 매장가" },
+    { name: "축의금", price: 117000, src: "25년 평균, NH농협 이체 분석" },
+    { name: "아이폰 18 프로", price: 1990000, src: "256GB 출고가" },
+    { name: "쏘나타 한 대", price: 28760000, src: "2027년형 2.0 프리미엄" },
+    { name: "서울 아파트 한 채", price: 1639190000, src: "평균 매매가, KB 26년 11월 2일" }
+  ];
+  const KEY = "zoopan-time-price-v2";
+  const $ = id => document.getElementById(id);
+
+  let pay = MIN_MONTH, shareIdx = 1;
+  try { const v = Number(localStorage.getItem(KEY)); if (v >= 1000000 && v <= 10000000) pay = v; } catch (e) {}
+
+  const comma = n => Math.round(n).toLocaleString("ko-KR");
+  const won = n => comma(n) + "원";
+  const hourly = () => pay / MONTH_H;
+
+  function duration(price) {
+    const h = hourly();
+    const sec = price / h * 3600;
+    const totalMin = Math.round(sec / 60);
+    const dayMin = DAY_H * 60, monthMin = MONTH_H * 60;
+    if (sec < 60) return { big: Math.max(1, Math.round(sec)) + "초", small: "" };
+    if (totalMin < 60) return { big: totalMin + "분", small: "" };
+    if (totalMin < dayMin) {
+      const hh = Math.floor(totalMin / 60), m = totalMin % 60;
+      return { big: hh + "시간" + (m ? " " + m + "분" : ""), small: "" };
+    }
+    if (totalMin < monthMin) {
+      let d = Math.floor(totalMin / dayMin), hh = Math.round((totalMin % dayMin) / 60);
+      if (hh >= DAY_H) { d += 1; hh = 0; }
+      return { big: d + "일" + (hh ? " " + hh + "시간" : ""), small: "근무일" };
+    }
+    const months = totalMin / monthMin;
+    if (months < 12) return { big: (Math.round(months * 10) / 10) + "개월", small: "월급 전부" };
+    let y = Math.floor(months / 12), mo = Math.round(months % 12);
+    if (mo === 12) { y += 1; mo = 0; }
+    return { big: y + "년" + (mo ? " " + mo + "개월" : ""), small: "한 푼 안 쓰고" };
+  }
+
+  // 목록은 한 번만 만들고 도장 글자만 바꾼다 (슬라이더 드래그 중 깜빡임 방지)
+  let stamps = [];
+  function buildList() {
+  stamps = [];
+  $("list").innerHTML = "";
+  $("asOf").textContent = `가격은 ${+UPDATED.slice(5, 7)}월 ${+UPDATED.slice(8, 10)}일 기준이에요.`;
+  ITEMS.forEach((it, i) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<div class="name"></div><div class="price"></div><button type="button" class="stamp"></button>`;
+    row.querySelector(".name").textContent = it.name;
+    row.querySelector(".price").textContent = `${won(it.price)} · ${it.src}`;
+    const st = row.querySelector(".stamp");
+    st.addEventListener("click", () => {
+      shareIdx = i; renderShare();
+      $("shareTitle").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    });
+    stamps.push(st);
+    $("list").appendChild(row);
+  });
+  }
+
+  function renderStamps(pop) {
+    ITEMS.forEach((it, i) => {
+      const d = duration(it.price);
+      const st = stamps[i];
+      const html = d.big + (d.small ? `<small>${d.small}</small>` : "");
+      if (st.innerHTML !== html) {
+        st.innerHTML = html;
+        if (pop) { st.classList.remove("pop"); void st.offsetWidth; st.classList.add("pop"); }
+      }
+      st.setAttribute("aria-label", `${it.name}: 내 노동 ${d.big}. 공유 카드 만들기`);
+    });
+  }
+
+  function renderRev() {
+    const h = hourly();
+    $("rev").innerHTML = [
+      ["연차 하루", won(h * DAY_H)],
+      ["8명 회의 한 시간", won(h * 8)],
+      ["야근 한 시간 (1.5배)", won(h * 1.5)],
+      ["점심시간 한 시간", "0원"]
+    ].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("");
+  }
+
+  function workedToday(now) {
+    const day = now.getDay();
+    if (day === 0 || day === 6) return { amt: 0, status: "weekend" };
+    const t = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+    const start = START * 60, lunchS = 720, lunchE = 780, end = start + DAY_H * 60 + 60;
+    if (t <= start) return { amt: 0, status: "before" };
+    const until = Math.min(t, end);
+    const worked = until - start - Math.max(0, Math.min(until, lunchE) - lunchS);
+    const amt = worked / 60 * hourly();
+    if (t >= end) return { amt, status: "done" };
+    if (t >= lunchS && t < lunchE) return { amt, status: "lunch" };
+    return { amt, status: "working" };
+  }
+  function tick() {
+    const r = workedToday(new Date());
+    $("ticker").classList.toggle("live", r.status === "working");
+    const t = $("tickerText");
+    if (r.status === "weekend") t.textContent = "주말이에요. 오늘 내 시간은 값을 매기지 않아요.";
+    else if (r.status === "before") t.innerHTML = "아직 출근 전. 오늘 번 돈 <strong>0원</strong>.";
+    else if (r.status === "lunch") t.innerHTML = `점심시간. 오전에 <strong class="num">${won(r.amt)}</strong> 벌었어요.`;
+    else if (r.status === "done") t.innerHTML = `퇴근 시간 지남. 오늘 <strong class="num">${won(r.amt)}</strong> 벌었어요.`;
+    else t.innerHTML = `9시부터 지금까지 <strong class="num">${won(r.amt)}</strong> 벌었어요.`;
+  }
+
+  let lastShareText = "", shareTimer = 0, shareSeq = 0;
+  async function renderShare() {
+    const seq = ++shareSeq;
+    const it = ITEMS[shareIdx];
+    const d = duration(it.price);
+    const perMin = won(hourly() / 60);
+    lastShareText = `${it.name}(${won(it.price)}) = 내 노동 ${d.big}. 내 1분은 ${perMin}. 너의 1분은? #내시간의가격 #주판`;
+    const bodyText = "근태 기록 카드 · 내 시간의 가격 내 노동으로 치면 내 1분은 너의 1분은 얼마? 주판 ZOOPAN " + d.small;
+    try {
+      await Promise.all([
+        document.fonts.load('64px "Black Han Sans"', it.name + d.big),
+        document.fonts.load('600 40px "IBM Plex Mono"', "0123456789,원"),
+        document.fonts.load('500 36px "IBM Plex Sans KR"', bodyText)
+      ]);
+    } catch (e) {}
+    if (seq !== shareSeq) return;
+    const W = 1080, H = 1350;
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const g = cv.getContext("2d");
+    const ink = "#1b2938", stamp = "#bf3a2d", muted = "#5a6979", rule = "#c7d0da";
+    g.fillStyle = "#e9edf1"; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#fbfcfd"; g.fillRect(70, 70, W - 140, H - 140);
+    g.strokeStyle = rule; g.lineWidth = 2; g.strokeRect(70, 70, W - 140, H - 140);
+    g.fillStyle = "#e9edf1";
+    for (let y = 120; y < H - 100; y += 70) { g.beginPath(); g.arc(112, y, 11, 0, Math.PI * 2); g.fill(); }
+    g.fillStyle = muted; g.font = '500 32px "IBM Plex Sans KR", sans-serif';
+    g.fillText("근태 기록 카드 · 내 시간의 가격", 170, 160);
+    g.strokeStyle = ink; g.lineWidth = 4; g.beginPath(); g.moveTo(170, 195); g.lineTo(W - 130, 195); g.stroke();
+    g.fillStyle = ink; g.font = '64px "Black Han Sans", sans-serif';
+    g.fillText(it.name, 170, 330);
+    g.fillStyle = muted; g.font = '600 40px "IBM Plex Mono", monospace';
+    g.fillText(won(it.price), 170, 420);
+    g.font = '500 36px "IBM Plex Sans KR", sans-serif';
+    g.fillText("내 노동으로 치면", 170, 570);
+    g.save();
+    g.translate(W / 2 + 20, 790); g.rotate(-0.06);
+    let size = 150;
+    g.font = `${size}px "Black Han Sans", sans-serif`;
+    while (g.measureText(d.big).width > W - 360 && size > 70) { size -= 8; g.font = `${size}px "Black Han Sans", sans-serif`; }
+    const tw = g.measureText(d.big).width;
+    g.strokeStyle = stamp; g.lineWidth = 10;
+    roundRect(g, -tw / 2 - 40, -size * 0.85, tw + 80, size * 1.35 + (d.small ? 40 : 0), 14); g.stroke();
+    g.fillStyle = stamp; g.textAlign = "center";
+    g.fillText(d.big, 0, size * 0.25);
+    if (d.small) { g.font = '500 34px "IBM Plex Sans KR", sans-serif'; g.fillText(d.small, 0, size * 0.25 + 60); }
+    g.restore();
+    g.textAlign = "left";
+    g.strokeStyle = rule; g.lineWidth = 2; g.setLineDash([10, 10]);
+    g.beginPath(); g.moveTo(170, 1050); g.lineTo(W - 130, 1050); g.stroke(); g.setLineDash([]);
+    g.fillStyle = ink; g.font = '500 36px "IBM Plex Sans KR", sans-serif';
+    g.fillText("내 1분은", 170, 1120);
+    g.fillStyle = stamp; g.font = '600 44px "IBM Plex Mono", monospace';
+    g.fillText(perMin, 330, 1122);
+    g.fillStyle = muted; g.font = '500 30px "IBM Plex Sans KR", sans-serif';
+    g.fillText("너의 1분은 얼마? · 주판 ZOOPAN", 170, 1205);
+    $("shareImg").src = cv.toDataURL("image/png");
+    $("shareImg").alt = `공유 카드: ${it.name} = 내 노동 ${d.big}`;
+  }
+  function roundRect(g, x, y, w, h, r) {
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+
+  function render(pop) {
+    const isMin = pay === MIN_MONTH;
+    $("who").textContent = isMin ? "최저시급으로 일하면" : `월급 ${comma(pay / 10000)}만 원이면`;
+    $("perMin").textContent = won(hourly() / 60);
+    $("payText").textContent = won(pay);
+    $("dialHint").textContent = isMin ? "밀어서 내 월급에 맞춰 보세요" : `시급 ${won(hourly())} · 최저시급의 ${(hourly() / MIN_WAGE).toFixed(2)}배`;
+    $("resetBtn").hidden = isMin;
+    renderStamps(pop);
+    renderRev();
+    tick();
+    clearTimeout(shareTimer);
+    shareTimer = setTimeout(renderShare, 150);
+  }
+
+  const slider = $("pay");
+  slider.value = pay;
+  slider.addEventListener("input", () => {
+    pay = Number(slider.value);
+    if (Math.abs(pay - MIN_MONTH) < 15000) pay = MIN_MONTH; // 최저임금 근처는 딱 맞춰 준다
+    render(true);
+  });
+  slider.addEventListener("change", () => { try { localStorage.setItem(KEY, String(pay)); } catch (e) {} });
+  $("resetBtn").addEventListener("click", () => {
+    pay = MIN_MONTH; slider.value = pay;
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    render(true);
+  });
+  $("copyBtn").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(lastShareText); $("toast").textContent = "문구를 복사했어요."; }
+    catch (e) { $("toast").textContent = lastShareText; }
+  });
+  $("nextBtn").addEventListener("click", () => { shareIdx = (shareIdx + 1) % ITEMS.length; renderShare(); });
+
+  buildList();
+  render(false);
+  setInterval(tick, 1000);
+
+  fetch("prices.json", { cache: "no-cache" })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(d => {
+      const ok = Array.isArray(d.items) && d.items.length && d.items.every(x => x.name && x.price > 0);
+      if (!ok) return;
+      ITEMS = d.items; UPDATED = d.updated || UPDATED;
+      shareIdx = Math.min(shareIdx, ITEMS.length - 1);
+      buildList(); render(false);
+    })
+    .catch(() => {});
+})();
+</script>

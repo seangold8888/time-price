@@ -1,0 +1,5 @@
+{
+  "name": "time-price-station-worker",
+  "private": true,
+  "devDependencies": { "wrangler": "4.42.0" }
+}
