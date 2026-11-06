@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#dfe9e6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Mono:wght@600&family=IBM+Plex+Sans+KR:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&family=Nanum+Pen+Script&family=Song+Myung&display=swap">
 <style>
 /* 해우소: 휴게소 공중화장실 × 절 (연등·목탁). 홀 = 칸 4개 + 타일 바닥, 칸 안 = 근심 적는 종이 + 물 내리기 */
 :root {
@@ -19,8 +19,10 @@
   --paper: #fffdf6;
   --chip: rgba(17, 22, 28, .86);
   --chip-ink: #f2f5f7;
-  --display: "Black Han Sans", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --display: "Do Hyeon", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --body: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --hand: "Nanum Pen Script", "Apple SD Gothic Neo", cursive;
+  --brush: "Song Myung", "AppleMyungjo", "Batang", serif;
   color-scheme: light;
 }
 * { box-sizing: border-box; }
@@ -46,10 +48,10 @@ button:active { transform: scale(.96); }
 .inside[hidden] { display: none; }
 .paper { pointer-events: auto; width: 100%; max-width: 400px; background: var(--paper); border-radius: 6px 6px 14px 14px; padding: 16px 16px 14px;
   box-shadow: 0 10px 30px rgba(0,0,0,.25); background-image: repeating-linear-gradient(transparent 0 27px, #eadfc8 27px 28px); }
-.paper h1 { font: 20px var(--display); margin: 0 0 2px; }
+.paper h1 { font: 34px/1 var(--hand); margin: 0 0 2px; }
 .paper .note { font-size: 12px; color: #6b6355; margin: 0 0 10px; }
 textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0; border-radius: 10px; background: rgba(255,255,255,.7); padding: 10px 12px;
-  font: 500 16px/1.5 var(--body); color: var(--ink); -webkit-user-select: text; user-select: text; }
+  font: 25px/1.25 var(--hand); color: var(--ink); -webkit-user-select: text; user-select: text; }
 .cards { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 12px; }
 .cards button { font: 500 13px/1.25 var(--body); padding: 8px 11px; background: #f3ead6; color: #4a3f2e; border-radius: 10px; text-align: left; }
 .cards button.on { background: #2f6e4f; color: #fff; }
@@ -63,7 +65,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
   box-shadow: 0 10px 30px rgba(0,0,0,.3); border-top: 8px solid var(--red); }
 .hwadu[hidden] { display: none; }
 .hwadu small { display: block; font: 700 12px var(--body); color: var(--red); letter-spacing: .08em; }
-.hwadu p { font: 24px/1.35 var(--display); margin: 10px 0 8px; }
+.hwadu p { font: 26px/1.4 var(--brush); margin: 10px 0 8px; }
 .hwadu .sub { font: 500 13px var(--body); color: #6b6355; margin: 0 0 16px; }
 .hwadu a.call[hidden] { display: none; }
 .hwadu a.call { display: block; margin: 0 0 10px; padding: 13px; border-radius: 999px; background: var(--red); color: #fff; font: 700 15px var(--body); text-decoration: none; }
@@ -187,9 +189,9 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
     g.fillStyle = "#ffffff"; g.globalAlpha = 1; g.fillRect(40, 62, 90, 5); g.globalAlpha = flick; g.fillRect(230, 62, 90, 5); g.globalAlpha = 1;
     // 오늘 카운터 (LED)
     g.fillStyle = "#0b0d0f"; rr(14, 10, W - 28, 42, 6); g.fill();
-    g.fillStyle = "#ff5a44"; g.font = '16px "Black Han Sans", sans-serif'; g.textBaseline = "middle"; g.textAlign = "left";
+    g.fillStyle = "#ff5a44"; g.font = '16px "Do Hyeon", sans-serif'; g.textBaseline = "middle"; g.textAlign = "left";
     g.fillText(`오늘 내려간 근심 ${comma(count)}개`, 26, 31);
-    g.fillStyle = "#6dff8f"; g.textAlign = "right"; g.font = '600 12px "IBM Plex Mono", "IBM Plex Sans KR", monospace';
+    g.fillStyle = "#6dff8f"; g.textAlign = "right"; g.font = '600 12px "Do Hyeon", sans-serif';
     g.fillText(online ? `접속 ${total}명` : "", W - 26, 31); g.textAlign = "left";
     // 벽 타일
     g.fillStyle = "#dfe9e6"; g.fillRect(0, 70, W, FLOOR - 70);
@@ -198,7 +200,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
     for (let x = 8; x < W; x += 16) { g.beginPath(); g.moveTo(x, 70); g.lineTo(x, RAIL); g.stroke(); }
     // 표어
     sloganT += dt; if (sloganT > 9000) { sloganT = 0; sloganI = (sloganI + 1) % SLOGANS.length; }
-    g.font = '13px "Black Han Sans", sans-serif'; g.textAlign = "center";
+    g.font = '13px "Do Hyeon", sans-serif'; g.textAlign = "center";
     const sl = SLOGANS[sloganI], sw = g.measureText(sl).width + 26;
     g.fillStyle = "#2f6e4f"; rr(W / 2 - sw / 2, 78, sw, 24, 4); g.fill();
     g.fillStyle = "#fff"; g.fillText(sl, W / 2, 90.5);
@@ -232,13 +234,13 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
       }
       // 사용중 / 비었음
       g.fillStyle = occ ? "#c8372b" : "#2fa35a"; rr(cx(i) - 17, DOOR_T + 8, 34, 13, 3); g.fill();
-      g.fillStyle = "#fff"; g.font = '700 8px "IBM Plex Sans KR", sans-serif'; g.textAlign = "center"; g.fillText(occ ? "사용중" : "비었음", cx(i), DOOR_T + 15);
+      g.fillStyle = "#fff"; g.font = '700 8px "Gowun Dodum", sans-serif'; g.textAlign = "center"; g.fillText(occ ? "사용중" : "비었음", cx(i), DOOR_T + 15);
       // 칸막이 기둥
       g.fillStyle = "#b8b0a0"; g.fillRect(x, RAIL, 4, FLOOR - RAIL + 2);
       // 배경 손님이 물 내리는 소리
       if (np.flushing && !realIn(i)) {
         const k = (now / 1000 % 1);
-        g.globalAlpha = 0.9; g.fillStyle = "#2f7fd6"; g.font = '14px "Black Han Sans", sans-serif';
+        g.globalAlpha = 0.9; g.fillStyle = "#2f7fd6"; g.font = '14px "Do Hyeon", sans-serif';
         g.fillText("쏴아~", cx(i) + Math.sin(now / 90) * 2, RAIL - 6 - k * 4); g.globalAlpha = 1;
       }
     }
@@ -254,7 +256,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
     // 미끄럼 주의 표지 + 배수구
     const fx = 30, fy = H - 150;
     g.fillStyle = "#f0c43a"; g.beginPath(); g.moveTo(fx - 13, fy); g.lineTo(fx - 6, fy - 40); g.lineTo(fx + 6, fy - 40); g.lineTo(fx + 13, fy); g.closePath(); g.fill();
-    g.fillStyle = "#1b2329"; g.font = '700 7px "IBM Plex Sans KR", sans-serif'; g.textAlign = "center"; g.fillText("미끄럼", fx, fy - 24); g.fillText("주의", fx, fy - 15);
+    g.fillStyle = "#1b2329"; g.font = '700 7px "Gowun Dodum", sans-serif'; g.textAlign = "center"; g.fillText("미끄럼", fx, fy - 24); g.fillText("주의", fx, fy - 15);
     g.fillStyle = "#8d969e"; g.beginPath(); g.arc(W / 2, H - 170, 9, 0, Math.PI * 2); g.fill();
     g.strokeStyle = "#6f7880"; g.lineWidth = 1.5; for (let k = -6; k <= 6; k += 4) { g.beginPath(); g.moveTo(W / 2 + k, H - 177); g.lineTo(W / 2 + k, H - 163); g.stroke(); }
   }
@@ -291,7 +293,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
     g.beginPath(); g.arc(4.5, -60, 2, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
     g.restore();
     if (!isMe) return;
-    g.save(); g.font = '700 11px "IBM Plex Sans KR", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+    g.save(); g.font = '700 11px "Gowun Dodum", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
     const ty = y - 92 * s; g.fillStyle = "#f08a2c"; rr(x - 13, ty, 26, 17, 8.5); g.fill();
     g.beginPath(); g.moveTo(x - 4, ty + 17); g.lineTo(x + 4, ty + 17); g.lineTo(x, ty + 22); g.fill();
     g.fillStyle = "#fff"; g.fillText("나", x, ty + 9); g.restore();
@@ -303,11 +305,11 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
       const k = (t - s.t0) / 6500; if (k > 1) continue;
       const a = Math.min(1, k * 6, (1 - k) * 3), y = RAIL - 12 - k * 40, x = Math.min(W - 120, Math.max(120, s.x));
       g.save(); g.globalAlpha = a; g.textAlign = "center"; g.textBaseline = "middle";
-      g.font = '700 13px "IBM Plex Sans KR", sans-serif';
+      g.font = '700 13px "Gowun Dodum", sans-serif';
       const w = Math.min(W - 24, Math.max(g.measureText(s.text).width, 120) + 24);
       g.fillStyle = "rgba(255,255,255,.94)"; g.shadowColor = "rgba(0,0,0,.18)"; g.shadowBlur = 10; rr(x - w / 2, y - 22, w, 42, 12); g.fill(); g.shadowBlur = 0;
-      g.fillStyle = "#8a7a5c"; g.font = '700 10px "IBM Plex Sans KR", sans-serif'; g.fillText("누군가 내려보낸 근심", x, y - 11);
-      g.fillStyle = "#1b2329"; g.font = '700 13px "IBM Plex Sans KR", sans-serif'; g.fillText(s.text, x, y + 7);
+      g.fillStyle = "#8a7a5c"; g.font = '700 10px "Gowun Dodum", sans-serif'; g.fillText("누군가 내려보낸 근심", x, y - 11);
+      g.fillStyle = "#1b2329"; g.font = '700 13px "Gowun Dodum", sans-serif'; g.fillText(s.text, x, y + 7);
       g.restore();
     }
     while (smokes.length && t - smokes[0].t0 > 6500) smokes.shift();
@@ -327,7 +329,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
     g.fillStyle = "#fbfbf6"; g.beginPath(); g.arc(W - 46, by - 52, 15, 0, Math.PI * 2); g.fill(); g.fillStyle = "#d7d7ce"; g.beginPath(); g.arc(W - 46, by - 52, 5, 0, Math.PI * 2); g.fill();
     g.fillStyle = "#fbfbf6"; g.fillRect(W - 61, by - 52, 15, 40);
     // 벽 낙서
-    g.save(); g.translate(48, by - 70); g.rotate(-0.12); g.fillStyle = "rgba(60,70,80,.45)"; g.font = '700 12px "IBM Plex Sans KR", sans-serif'; g.fillText("다 지나간다", 0, 0); g.restore();
+    g.save(); g.translate(48, by - 70); g.rotate(-0.12); g.fillStyle = "rgba(60,70,80,.45)"; g.font = '22px "Nanum Pen Script", cursive'; g.fillText("다 지나간다", 0, 0); g.restore();
     // 물탱크 + 목탁 레버
     g.fillStyle = "#f4f6f7"; rr(bx - 52, by - 120, 104, 62, 8); g.fill(); g.strokeStyle = "#c9d0d5"; g.lineWidth = 2; g.stroke();
     g.fillStyle = "#8a5a35"; g.beginPath(); g.ellipse(bx + 34, by - 104, 11, 8, 0, 0, Math.PI * 2); g.fill(); g.fillRect(bx + 31, by - 114, 6, 5);
@@ -342,7 +344,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
       for (let k = 0; k < 4; k++) { const a = t / 120 + k * 1.57; g.beginPath(); g.ellipse(bx, by + 2, 46 - k * 10, 15 - k * 3.2, 0, a, a + 2.2); g.stroke(); }
       // 글자가 빙글빙글 빨려 내려간다 (화면에서만, 저장 안 함)
       const chars = [...flushText].slice(0, 40);
-      g.font = '18px "Black Han Sans", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
+      g.font = '26px "Nanum Pen Script", cursive'; g.textAlign = "center"; g.textBaseline = "middle";
       chars.forEach((ch, i) => {
         const p = Math.max(0, Math.min(1, (flushing - i * 28) / 1500));
         const sx = bx + (i - chars.length / 2) * 13, sy = by - 230;
@@ -352,7 +354,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
         g.globalAlpha = 1 - Math.pow(p, 3); g.fillStyle = "#1b2329"; g.fillText(ch, x, y);
       });
       g.globalAlpha = Math.max(0, 1 - flushing / 2400);
-      g.fillStyle = "#2f7fd6"; g.font = '40px "Black Han Sans", sans-serif'; g.fillText("쏴아아~", bx + Math.sin(t / 60) * 3, by - 160);
+      g.fillStyle = "#2f7fd6"; g.font = '40px "Do Hyeon", sans-serif'; g.fillText("쏴아아~", bx + Math.sin(t / 60) * 3, by - 160);
       g.globalAlpha = 1;
     }
   }
@@ -544,7 +546,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
     try { step(t); } catch (e) { console.error(e); fit(); if (t - errShown > 4000) { errShown = t; toast("화면 오류: " + String(e && e.message || e).slice(0, 80), 3500); } }
     requestAnimationFrame(frame);
   }
-  if (document.fonts && document.fonts.load) document.fonts.load('16px "Black Han Sans"', "오늘 내려간 근심개쏴아사용중비었음근심은변기에마음가볍게").catch(() => {});
+  if (document.fonts && document.fonts.load) Promise.all([document.fonts.load('16px "Do Hyeon"', "오늘 내려간 근심개쏴아사용중비었음근심은변기에마음가볍게미끄럼주의"), document.fonts.load('22px "Nanum Pen Script"', "다 지나간다"), document.fonts.load('13px "Gowun Dodum"', "누군가 내려보낸 근심")]).catch(() => {});
   toast("해우소 · 근심 푸는 곳<br>빈 칸에 들어가 근심 적고 물 내려요", 3600);
   requestAnimationFrame(frame);
 })();
