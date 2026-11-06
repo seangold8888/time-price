@@ -44,8 +44,19 @@ export class Station {
     this.state.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
   }
 
+  // 살아 있는 연결만. 90초 넘게 아무 소식(메시지·30초 ping) 없는 연결은 닫힌 탭으로 보고 정리한다.
   live(tag) {
-    return this.state.getWebSockets(tag).filter(w => { const a = w.deserializeAttachment(); return a && !a.gone; });
+    const now = Date.now();
+    return this.state.getWebSockets(tag).filter(w => {
+      const a = w.deserializeAttachment();
+      if (!a || a.gone) return false;
+      const pinged = this.state.getWebSocketAutoResponseTimestamp(w)?.getTime() || 0;
+      if (now - Math.max(a.seen || a.w, pinged) > 90000) {
+        a.gone = true; w.serializeAttachment(a); try { w.close(1001, "stale"); } catch {}
+        return false;
+      }
+      return true;
+    });
   }
 
   async fetch(req) {
@@ -71,6 +82,7 @@ export class Station {
     const a = ws.deserializeAttachment();
     if (!a || typeof msg !== "string" || msg.length > 300) return;
     const now = Date.now();
+    a.seen = now;
     if (now - a.w > 1000) { a.w = now; a.n = 0; }
     if (++a.n > MAX_RATE) { ws.serializeAttachment(a); return; }
     let q; try { q = JSON.parse(msg); } catch { return; }
