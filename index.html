@@ -805,7 +805,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   }
   addEventListener("pagehide", saveLupan);
   if (new URLSearchParams(location.search).has("ride")) { me.st = "ride"; rideT0 = performance.now() - (Number(new URLSearchParams(location.search).get("ride")) || 0); } // 시험용: ?ride=3000 (3초 지난 장면)
-  function frame(t) {
+  function step(t) {
     const dt = Math.min(64, t - last); last = t;
     const now = clock();
     // 열차 안: 승강장 대신 퇴근 열차 장면
@@ -814,7 +814,6 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       const btn = $("board"); btn.hidden = false; if (btn.textContent !== "내리기") btn.textContent = "내리기";
       if (t - rideT0 > RIDE_MS) endRide();
       prevPhase = trainState(now).phase;
-      requestAnimationFrame(frame);
       return;
     }
     const tr = drawScene(now, dt);
@@ -945,6 +944,16 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       prevPhase = tr.phase;
     }
     if (room && (walking || t - lastSent > 5000) && t - lastSent > 120) { sendPresence(); lastSent = t; }
+  }
+  // 한 프레임에서 오류가 나도 화면이 멈추지 않게: 오류를 잠깐 보여 주고 다음 프레임은 계속 그린다
+  let errShown = -1e9;
+  function frame(t) {
+    try { step(t); }
+    catch (e) {
+      console.error(e);
+      fit(); // 캔버스 상태(변환·잘라내기)를 초기화
+      if (t - errShown > 4000) { errShown = t; toast("화면 오류: " + String(e && e.message || e).slice(0, 80), 3500); }
+    }
     requestAnimationFrame(frame);
   }
   if (document.fonts && document.fonts.load) {
