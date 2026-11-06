@@ -39,6 +39,8 @@ button { font: 700 15px/1 var(--body); border: 0; border-radius: 999px; padding:
 button[hidden] { display: none; }
 .go { background: var(--green); color: #fff; box-shadow: 0 6px 18px rgba(47,110,79,.4); }
 .chip { background: var(--chip); color: var(--chip-ink); }
+a.chip { pointer-events: auto; font: 700 15px/1 var(--body); border-radius: 999px; padding: 13px 16px; text-decoration: none; display: inline-flex; align-items: center; }
+a.chip[hidden] { display: none; }
 button:focus-visible, textarea:focus-visible { outline: 2px solid #f0b429; outline-offset: 2px; }
 button:active { transform: scale(.96); }
 
@@ -78,7 +80,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
 
 <div class="stage"><canvas id="cv" aria-label="해우소. 칸이 네 개 있어요. 빈 칸을 누르거나 아래 버튼으로 들어가요."></canvas></div>
 <div class="toast" id="toast" role="status"></div>
-<div class="hud"><div class="row"><button class="go" id="enter" type="button">빈 칸에 들어가기</button></div></div>
+<div class="hud"><div class="row"><a class="chip back" id="back" href="../">← 내시간역</a><button class="go" id="enter" type="button">빈 칸에 들어가기</button></div></div>
 
 <div class="inside" id="inside" hidden>
   <div class="paper" id="paper">
@@ -422,6 +424,9 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
   connect();
 
   // ---------- 조작 ----------
+  // 어디서 왔는지에 따라 돌아가는 버튼 이름 (내시간역은 시각에 맞는 장소로 열린다)
+  const FROM = { roof: "← 옥상으로", station: "← 승강장으로", sauna: "← 찜질방으로" }[new URLSearchParams(location.search).get("from")] || "← 내시간역";
+  $("back").textContent = FROM;
   function pickStall(now) {
     // 지금 빈 칸 중 가까운 곳, 없으면 배경 손님이 제일 먼저 나오는 칸
     let best = -1, bd = 1e9;
@@ -467,11 +472,11 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
     me.st = "in"; send();
     $("inside").hidden = false; $("paper").hidden = false; $("hwadu").hidden = true;
     $("worry").value = ""; chosen = -1; dealCards(); flushT0 = -1;
-    $("enter").hidden = true;
+    $("enter").hidden = true; $("back").hidden = true;
   }
   function leaveStall() {
     me.st = "free"; me.x = cx(me.s); me.y = Y_TOP + 6; me.tx = me.x; me.ty = Y_TOP + 50 + Math.random() * 60; me.s = -1;
-    $("inside").hidden = true; $("enter").hidden = false; flushT0 = -1; send();
+    $("inside").hidden = true; $("enter").hidden = false; $("back").hidden = false; flushT0 = -1; send();
   }
   $("leave").addEventListener("click", leaveStall);
   $("done").addEventListener("click", () => {

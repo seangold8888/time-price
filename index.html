@@ -814,6 +814,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     g.fillStyle = "#5fb04a"; for (let i = 0; i < 5; i++) { g.beginPath(); g.ellipse(137 + i * 8, PT + 1, 4, 6, (i % 2 ? .4 : -.4), 0, Math.PI * 2); g.fill(); }
     g.fillStyle = "#7c8389"; g.fillRect(196, PT + 26, 3, 14); g.fillRect(248, PT + 26, 3, 14);
     g.fillStyle = "#9b6b43"; g.fillRect(190, PT + 22, 66, 6); g.fillStyle = "#86593a"; g.fillRect(190, PT + 10, 66, 5);
+    drawWc(273, PT - 104, t);
   }
 
   // 찜질방 마루: 나무 벽·불가마·벽시계·매점, 마루 바닥. 밤 11시~새벽 6시는 소등.
@@ -856,8 +857,26 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     }
     // 매트·목침
     g.fillStyle = "#4f7d8a"; g.fillRect(118, PT + 14, 70, 20); g.fillStyle = "#8a5a35"; g.fillRect(122, PT + 18, 14, 8);
+    drawWc(142, 196, t);
   }
   function saunaNight(now) { const h = hourOf(now); return h >= 23 || h < 6; }
+
+  // 어느 장소에서든 '해우소' 표지판을 누르면 해우소로 간다 (화장실은 어디에나 있으니까)
+  let wcRect = null;
+  function drawWc(x, y, t) {
+    const w = 76, h = 24, glow = 0.5 + Math.sin(t / 500) * 0.5;
+    g.save();
+    g.shadowColor = `rgba(80,160,255,${0.35 + glow * 0.4})`; g.shadowBlur = 8;
+    g.fillStyle = "#1f5fa8"; roundRect(x, y, w, h, 5); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = "#fff";
+    g.beginPath(); g.arc(x + 10, y + 6.5, 2.4, 0, Math.PI * 2); g.arc(x + 19.5, y + 6.5, 2.4, 0, Math.PI * 2); g.fill();
+    g.fillRect(x + 8, y + 9.5, 4, 9.5);
+    g.beginPath(); g.moveTo(x + 19.5, y + 9.5); g.lineTo(x + 23.5, y + 19); g.lineTo(x + 15.5, y + 19); g.closePath(); g.fill();
+    g.font = '14px "Do Hyeon", sans-serif'; g.textAlign = "left"; g.textBaseline = "middle"; g.fillText("해우소 →", x + 28, y + 12.5);
+    g.restore();
+    wcRect = { x: x - 8, y: y - 8, w: w + 16, h: h + 16 };
+  }
+  const goWc = () => { saveLupan(); location.href = "haewoo/?from=" + curScene; };
 
   // 오른쪽 아래: 다음 장소 안내 ("다음 17:00 내시간역")
   function drawNextChip(now) {
@@ -975,6 +994,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   cv.addEventListener("pointerdown", e => {
     const r = cv.getBoundingClientRect();
     const vx = (e.clientX - r.left) / r.width * W, vy = (e.clientY - r.top) / r.height * H;
+    if (wcRect && vx >= wcRect.x && vx <= wcRect.x + wcRect.w && vy >= wcRect.y && vy <= wcRect.y + wcRect.h && me.st !== "ride" && me.st !== "in") { goWc(); return; }
     // 내 캐릭터를 누르면 색 바꾸기 (사원증 줄 / 양머리 수건)
     if (me.st === "wait" || me.st === "lie") {
       const s = depthS(me.depth), py = depthY(me.depth), px = me.x * W, lie = me.st === "lie";
@@ -1174,6 +1194,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   function step(t) {
     const dt = Math.min(64, t - last); last = t;
     const now = clock();
+    wcRect = null;
     // 월급루팡 타이머: 근무 시간에 이 화면을 보고 있는 동안 회사 돈이 쌓인다 (점심시간은 내 시간이라 멈춤)
     if (schedule(now).mode === "work" && !document.hidden) { lupan.ms += dt; if (t - lupanSaved > 5000) { saveLupan(); lupanSaved = t; } }
     const want = sceneAt(now);
@@ -1360,6 +1381,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     const cLabel = tr.night ? "운행 종료 · 첫차 05:30" : crowdTitle(now);
     { const w = g.measureText(cLabel).width; const y = H - 104; g.fillStyle = "rgba(17,22,28,.62)"; roundRect(10, y, w + 20, 22, 11); g.fill(); g.fillStyle = crowdLevel(now) >= 0.85 && !tr.night ? "#ffb4a6" : "#fff"; g.fillText(cLabel, 20, y + 11.5); }
     drawNextChip(now);
+    drawWc(W - 86, H - 140, t);
 
     // 열차 상태 변화
     if (tr.phase !== prevPhase) {
