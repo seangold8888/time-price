@@ -326,31 +326,49 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     g.restore();
   }
 
-  // 한숨 효과 (머리 위)
+  // 한숨 효과 (머리 위). 밝은 바닥에서도 보이게 테두리·그림자·진한 말풍선.
+  const EMOTE_MS = 3400;
+  function emoteLabel(x, y, text) {
+    g.font = '700 12px "IBM Plex Sans KR", sans-serif';
+    const w = g.measureText(text).width + 16;
+    g.fillStyle = "rgba(17,22,28,.86)"; roundRect(x - w / 2, y - 10, w, 20, 10); g.fill();
+    g.fillStyle = "#fff"; g.fillText(text, x, y + 0.5);
+  }
   function drawEmote(x, y, lv, age) {
-    if (!lv || age < 0 || age > 2800) return;
-    const k = age / 2800, a = Math.min(1, (2800 - age) / 500);
+    if (!lv || age < 0 || age > EMOTE_MS) return;
+    const k = age / EMOTE_MS, a = Math.min(1, (EMOTE_MS - age) / 500, age / 150);
     g.save(); g.globalAlpha = a; g.textAlign = "center"; g.textBaseline = "middle";
+    g.lineJoin = "round";
     if (lv === 1) { // 한숨 구름
-      const yy = y - 6 - k * 26;
-      g.fillStyle = "rgba(235,240,244,.92)";
-      for (const [dx, dy, r] of [[-9, 2, 7], [0, -3, 9], [10, 1, 7], [3, 5, 7]]) { g.beginPath(); g.arc(x + dx, yy + dy, r * (0.8 + k * 0.5), 0, Math.PI * 2); g.fill(); }
-      g.fillStyle = "#56616b"; g.font = '700 10px "IBM Plex Sans KR", sans-serif'; g.fillText("하아…", x, yy + 1);
-    } else if (lv === 2) { // 영혼 가출
-      const yy = y - 10 - k * 60, sway = Math.sin(age / 180) * 4;
-      g.fillStyle = "rgba(255,255,255,.85)";
-      g.beginPath(); g.arc(x + sway, yy - 8, 8, Math.PI, 0); g.lineTo(x + sway + 8, yy + 8);
-      for (let i = 0; i < 4; i++) g.lineTo(x + sway + 8 - (i + 0.5) * 4, yy + (i % 2 ? 8 : 4));
-      g.lineTo(x + sway - 8, yy + 8); g.closePath(); g.fill();
-      g.fillStyle = "#333"; g.fillRect(x + sway - 4, yy - 9, 2, 2); g.fillRect(x + sway + 2, yy - 9, 2, 2);
-      g.fillStyle = "#e9eef2"; g.font = '700 10px "IBM Plex Sans KR", sans-serif'; g.fillText("영혼 가출", x, yy - 24);
+      const yy = y - 14 - k * 30, grow = 0.9 + k * 0.4;
+      g.shadowColor = "rgba(0,0,0,.25)"; g.shadowBlur = 6;
+      g.fillStyle = "#f4f7f9"; g.strokeStyle = "#7d8891"; g.lineWidth = 2;
+      g.beginPath();
+      for (const [dx, dy, r] of [[-14, 3, 10], [0, -5, 13], [14, 2, 10], [4, 7, 10], [-6, 7, 9]]) { g.moveTo(x + dx + r * grow, yy + dy); g.arc(x + dx, yy + dy, r * grow, 0, Math.PI * 2); }
+      g.stroke(); g.fill(); g.shadowBlur = 0;
+      g.fillStyle = "#3f4a54"; g.font = '700 12px "IBM Plex Sans KR", sans-serif'; g.fillText("하아…", x, yy + 1);
+    } else if (lv === 2) { // 영혼 가출: 머리에서 빠져나와 둥실 떠오르는 유령 + 연결 실
+      const yy = y - 20 - k * 70, sway = Math.sin(age / 200) * 6, gx = x + sway;
+      g.setLineDash([3, 4]); g.strokeStyle = "rgba(255,255,255,.8)"; g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(x, y + 6); g.quadraticCurveTo(x - 10, (y + yy) / 2, gx, yy + 16); g.stroke(); g.setLineDash([]);
+      g.shadowColor = "rgba(120,200,255,.9)"; g.shadowBlur = 14;
+      g.fillStyle = "#ffffff"; g.strokeStyle = "#2c3640"; g.lineWidth = 2;
+      g.beginPath(); g.arc(gx, yy - 4, 15, Math.PI, 0); g.lineTo(gx + 15, yy + 16);
+      for (let i = 0; i < 6; i++) g.lineTo(gx + 15 - (i + 0.5) * 5, yy + (i % 2 ? 16 : 10));
+      g.lineTo(gx - 15, yy + 16); g.closePath(); g.fill(); g.shadowBlur = 0; g.stroke();
+      g.fillStyle = "#1b2329"; g.beginPath(); g.arc(gx - 5, yy - 4, 2.4, 0, Math.PI * 2); g.arc(gx + 5, yy - 4, 2.4, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.ellipse(gx, yy + 4, 2.5, 3.2, 0, 0, Math.PI * 2); g.fill();
+      emoteLabel(gx, yy - 30, "영혼 가출 중…");
     } else { // 사직서 날리기
-      const yy = y - 6 - k * 90, xx = x + k * 70, rot = -0.3 + k * 2.4;
-      g.translate(xx, yy); g.rotate(rot);
-      g.fillStyle = "#fff"; g.fillRect(-13, -17, 26, 34);
-      g.strokeStyle = "#999"; g.lineWidth = 1; g.strokeRect(-13, -17, 26, 34);
-      g.fillStyle = "#c8372b"; g.font = '9px "Black Han Sans", sans-serif'; g.fillText("사직서", 0, -8);
-      g.fillStyle = "#bbb"; for (let i = 0; i < 4; i++) g.fillRect(-9, -1 + i * 4, 18, 1.2);
+      const yy = y - 14 - k * 110, xx = x + k * 80, rot = -0.25 + k * 2.6;
+      g.save(); g.translate(xx, yy); g.rotate(rot);
+      g.shadowColor = "rgba(0,0,0,.35)"; g.shadowBlur = 8;
+      g.fillStyle = "#fff"; g.fillRect(-19, -25, 38, 50); g.shadowBlur = 0;
+      g.strokeStyle = "#2c3640"; g.lineWidth = 2; g.strokeRect(-19, -25, 38, 50);
+      g.fillStyle = "#c8372b"; g.font = '13px "Black Han Sans", sans-serif'; g.fillText("사직서", 0, -12);
+      g.fillStyle = "#9aa3ab"; for (let i = 0; i < 4; i++) g.fillRect(-13, 0 + i * 5, 26, 1.6);
+      g.restore();
+      if (k < 0.6) emoteLabel(x, y - 22, "사직서 던짐!");
     }
     g.restore();
   }
@@ -674,10 +692,10 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     const n = performance.now();
     sighTaps = sighTaps.filter(x => n - x < 3000); sighTaps.push(n);
     const lv = sighTaps.length >= 6 ? 3 : sighTaps.length >= 3 ? 2 : 1;
-    if (lv !== myEmote.lv || n - myEmote.t0 > 1500) myEmote.t0 = n;
+    if (lv !== myEmote.lv || n - myEmote.t0 > 1800) myEmote.t0 = n;
     myEmote.lv = lv; sendPresence();
     clearTimeout(sighTimer);
-    sighTimer = setTimeout(() => { myEmote.lv = 0; sendPresence(); }, 2800);
+    sighTimer = setTimeout(() => { myEmote.lv = 0; sendPresence(); }, EMOTE_MS);
   });
 
   // 줄서기/타기: 가까운 문 줄 맨 뒤에 선다. 내 앞 사람이 다 타야 내 차례, 러시 땐 만원이면 못 탄다.
