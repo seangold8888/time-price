@@ -149,14 +149,18 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 
   // 열차 시간표: 모두의 시계로 같은 열차를 본다 (서버 없음)
   const CYCLE = 40, ARRIVE = 4, OPEN = 14, CLOSE = 16, LEAVE = 20;
-  const DOORS = [70, 180, 290];
+  // 벽·열차·스크린도어는 K배로 줄여서 멀리 보이게 그린다 (그만큼 승강장 바닥이 넓어진다)
+  const K = 0.64, BW = Math.round(W / K);          // 줄인 그림 안에서 쓰는 가로 폭
+  const DOORS = [70, 180, 290, 400, 510];           // 줄인 그림 안 좌표
+  const DOOR_SX = DOORS.map(d => d * K);            // 화면 좌표
+  const PT = 86 + (426 - 86) * K;                   // 승강장 바닥이 시작하는 y
   function trainState(now) {
     const t = (now / 1000) % CYCLE;
     let x = null, door = 0, phase = "gone";
-    if (t < ARRIVE) { const k = t / ARRIVE; x = W * Math.pow(1 - k, 3); phase = "arrive"; }
+    if (t < ARRIVE) { const k = t / ARRIVE; x = BW * Math.pow(1 - k, 3); phase = "arrive"; }
     else if (t < OPEN) { x = 0; phase = "open"; door = Math.min(1, (t - ARRIVE) / 1.2); }
     else if (t < CLOSE) { x = 0; phase = "close"; door = Math.max(0, 1 - (t - OPEN) / 1.2); }
-    else if (t < LEAVE) { const k = (t - CLOSE) / (LEAVE - CLOSE); x = -W * k * k; phase = "leave"; }
+    else if (t < LEAVE) { const k = (t - CLOSE) / (LEAVE - CLOSE); x = -BW * k * k; phase = "leave"; }
     const next = Math.ceil(CYCLE - t);
     return { t, x, door, phase, next };
   }
@@ -166,7 +170,8 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   me.tx = me.x;
   const others = new Map(); // peer -> {x, depth, p, look, st, dx}
 
-  function depthY(d) { return 478 + d * (H - 536); } // 발 위치 y (버튼 위까지)
+  const FOOT_TOP = () => PT + 58, FOOT_RANGE = () => H - PT - 118;
+  function depthY(d) { return FOOT_TOP() + d * FOOT_RANGE(); } // 발 위치 y (버튼 위까지)
   function depthS(d) { return 0.86 + d * 0.26; }    // 크기
 
   function drawPerson(x, d, lk, perMinVal, isMe, walking, now, alpha) {
@@ -217,7 +222,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   }
 
   // ---------- 장면 ----------
-  let ledOffset = 0;
+  let ledOffset = 230; // 처음부터 글자가 보이게
   function ledText(tr) {
     const lines = ITEMS.map(it => `${it.name}행 ${dur(it.price)} 후 도착`);
     const head = tr.phase === "gone" ? `퇴근행 열차 ${tr.next}초 후 도착` : tr.phase === "arrive" ? "퇴근행 열차 들어옵니다" : tr.phase === "open" ? "퇴근행 열차 타세요" : "퇴근행 열차 출발합니다";
@@ -243,12 +248,15 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     g.fillStyle = "#ffb766";
     g.fillText(led.scroll, W - 20 - ledOffset, 57); g.fillText(led.scroll, W - 20 - ledOffset + sw, 57);
     g.restore();
+    // 여기서부터 벽·선로·열차·스크린도어는 K배로 줄여 그린다
+    g.save(); g.translate(0, 86); g.scale(K, K); g.translate(0, -86);
     // 벽 타일
-    g.fillStyle = C.tile; g.fillRect(0, 86, W, 300);
+    g.fillStyle = C.tile; g.fillRect(0, 86, BW, 300);
     g.strokeStyle = C.tile2; g.lineWidth = 1;
-    for (let y = 86; y < 386; y += 14) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
-    for (let y = 86, r = 0; y < 386; y += 14, r++) for (let x = (r % 2) * 14; x < W; x += 28) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 14); g.stroke(); }
-    // 역명판
+    for (let y = 86; y < 386; y += 14) { g.beginPath(); g.moveTo(0, y); g.lineTo(BW, y); g.stroke(); }
+    for (let y = 86, r = 0; y < 386; y += 14, r++) for (let x = (r % 2) * 14; x < BW; x += 28) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 14); g.stroke(); }
+    // 역명판 (가운데)
+    g.save(); g.translate((BW - 360) / 2, 0);
     g.fillStyle = "#fff"; roundRect(40, 120, 280, 70, 8); g.fill();
     g.fillStyle = C.line; g.fillRect(40, 176, 280, 14);
     g.fillStyle = C.line; g.beginPath(); g.arc(78, 150, 18, 0, Math.PI * 2); g.fill();
@@ -257,27 +265,32 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     g.font = '600 10px "IBM Plex Mono", monospace'; g.fillStyle = "#5c6770"; g.fillText("TIME-PRICE STATION", 108, 167);
     g.fillStyle = "#fff"; g.font = '700 9px "IBM Plex Sans KR", sans-serif';
     g.textAlign = "left"; g.fillText("◀ 출근역", 48, 183); g.textAlign = "right"; g.fillText("퇴근역 ▶", 312, 183);
+    g.restore();
     // 선로
-    g.fillStyle = "#2b2f33"; g.fillRect(0, 386, W, 40);
-    g.fillStyle = "#6c7176"; g.fillRect(0, 404, W, 3); g.fillRect(0, 418, W, 3);
+    g.fillStyle = "#2b2f33"; g.fillRect(0, 386, BW, 40);
+    g.fillStyle = "#6c7176"; g.fillRect(0, 404, BW, 3); g.fillRect(0, 418, BW, 3);
     // 열차
     if (tr.x !== null) drawTrain(tr.x, tr.door, now);
     // 스크린도어
     drawPSD(tr.door);
-    // 승강장 바닥
-    const fl = g.createLinearGradient(0, 426, 0, H); fl.addColorStop(0, C.floor); fl.addColorStop(1, C.floor2);
-    g.fillStyle = fl; g.fillRect(0, 426, W, H - 426);
-    g.fillStyle = "#e8c53a"; g.fillRect(0, 440, W, 8);
-    g.fillStyle = "rgba(0,0,0,.12)"; for (let x = 4; x < W; x += 8) g.fillRect(x, 442, 3, 4);
-    for (const dx of DOORS) { g.fillStyle = "rgba(255,255,255,.55)"; g.fillRect(dx - 20, 452, 4, 14); g.fillRect(dx + 16, 452, 4, 14); }
+    g.restore();
+    // 승강장 바닥 (넓다)
+    const fl = g.createLinearGradient(0, PT, 0, H); fl.addColorStop(0, C.floor); fl.addColorStop(1, C.floor2);
+    g.fillStyle = fl; g.fillRect(0, PT, W, H - PT);
+    g.fillStyle = "#e8c53a"; g.fillRect(0, PT + 10, W, 7);
+    g.fillStyle = "rgba(0,0,0,.12)"; for (let x = 4; x < W; x += 8) g.fillRect(x, PT + 12, 3, 3);
+    for (const dx of DOOR_SX) { g.fillStyle = "rgba(255,255,255,.55)"; g.fillRect(dx - 14, PT + 22, 3, 11); g.fillRect(dx + 11, PT + 22, 3, 11); }
+    // 바닥 줄눈 (넓은 바닥에 깊이감)
+    g.strokeStyle = "rgba(0,0,0,.06)"; g.lineWidth = 1;
+    for (let y = PT + 50; y < H; y += 46) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
     return tr;
   }
 
   function drawTrain(x, door, now) {
     g.save(); g.translate(x, 0);
-    g.fillStyle = "#e9edf0"; roundRect(-6, 214, W + 40, 186, 14); g.fill();
-    g.fillStyle = C.line; g.fillRect(-6, 330, W + 46, 14);
-    g.fillStyle = "#c9d0d5"; g.fillRect(-6, 386, W + 46, 12);
+    g.fillStyle = "#e9edf0"; roundRect(-6, 214, BW + 40, 186, 14); g.fill();
+    g.fillStyle = C.line; g.fillRect(-6, 330, BW + 46, 14);
+    g.fillStyle = "#c9d0d5"; g.fillRect(-6, 386, BW + 46, 12);
     for (const dx of DOORS) {
       // 창
       g.fillStyle = "#2c3a44";
@@ -294,18 +307,18 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 
   function drawPSD(door) {
     // 스크린도어 위 가로대 + 유리
-    g.fillStyle = "#3a434b"; g.fillRect(0, 222, W, 12);
+    g.fillStyle = "#3a434b"; g.fillRect(0, 222, BW, 12);
     g.fillStyle = "#79ff9c"; for (const dx of DOORS) { g.globalAlpha = door > 0 ? 1 : .25; g.fillRect(dx - 6, 226, 12, 4); }
     g.globalAlpha = 1;
-    g.fillStyle = "rgba(170,205,220,.18)"; g.fillRect(0, 234, W, 192);
+    g.fillStyle = "rgba(170,205,220,.18)"; g.fillRect(0, 234, BW, 192);
     g.fillStyle = "#59636c";
-    for (let x = 0; x <= W; x += 55) g.fillRect(x - 1.5, 234, 3, 192);
+    for (let x = 0; x <= BW; x += 55) g.fillRect(x - 1.5, 234, 3, 192);
     for (const dx of DOORS) {
       const open = door * 22;
       g.fillStyle = "#8a959d"; g.fillRect(dx - 24 - open, 234, 3, 192); g.fillRect(dx + 21 + open, 234, 3, 192);
       if (door > 0) { g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(dx - 21, 234, 42, 192); g.fillStyle = "rgba(170,205,220,.10)"; g.fillRect(dx - 24 - open, 234, open + 3, 192); g.fillRect(dx + 21, 234, open + 3, 192); }
     }
-    g.fillStyle = "#59636c"; g.fillRect(0, 422, W, 6);
+    g.fillStyle = "#59636c"; g.fillRect(0, 422, BW, 6);
   }
 
   // ---------- 실시간 ----------
@@ -393,9 +406,9 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     if (me.st !== "wait") return;
     const r = cv.getBoundingClientRect();
     const vx = (e.clientX - r.left) / r.width * W, vy = (e.clientY - r.top) / r.height * H;
-    if (vy < 440) return; // 승강장 바닥만
+    if (vy < PT + 10) return; // 승강장 바닥만
     me.tx = Math.min(0.95, Math.max(0.05, vx / W));
-    me.depth = Math.min(1, Math.max(0, (vy - 478) / (H - 536)));
+    me.depth = Math.min(1, Math.max(0, (vy - FOOT_TOP()) / FOOT_RANGE()));
   });
 
   $("me").addEventListener("click", () => {
@@ -416,7 +429,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   $("board").addEventListener("click", () => {
     if (me.st !== "wait") return;
     const px = me.x * W;
-    const door = DOORS.reduce((a, b) => Math.abs(b - px) < Math.abs(a - px) ? b : a);
+    const door = DOOR_SX.reduce((a, b) => Math.abs(b - px) < Math.abs(a - px) ? b : a);
     me.st = "going"; me.tx = door / W; me.depth = 0; $("board").hidden = true;
   });
 
