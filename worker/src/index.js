@@ -15,8 +15,12 @@ function clean(q, prev) {
     d: clamp(q.d, 0, 1, prev?.d ?? 0.5),
     m: Math.round(clamp(q.m, 0, 1440, prev?.m ?? 0)),
     lk: Math.round(clamp(q.lk, 0, 5, prev?.lk ?? 0)),
-    st: q.st === "in" ? 1 : 0,
+    st: q.st === "in" ? 1 : q.st === "lie" ? 2 : 0,
     e: Math.round(clamp(q.e, 0, 3, 0)),
+    sc: Math.round(clamp(q.sc, 0, 2, prev?.sc ?? 1)),   // 장소: 0 옥상, 1 역, 2 찜질방
+    p: Math.round(clamp(q.p, 0, 7, prev?.p ?? 0)),       // 소품
+    c: Math.round(clamp(q.c, 0, 5, prev?.c ?? 0)),       // 사원증 줄·수건 색
+    k: Math.round(clamp(q.k, 0, 99, 0)),                 // 오늘 구운 계란 수
   };
 }
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
@@ -113,7 +117,7 @@ export class Station {
     for (const room of this.pending) {
       const socks = this.live(room);
       const list = [];
-      for (const w of socks) { const a = w.deserializeAttachment(); if (a.s) list.push([a.id, a.s.x, a.s.d, a.s.m, a.s.lk, a.s.st, a.s.e]); }
+      for (const w of socks) { const a = w.deserializeAttachment(); if (a.s) list.push([a.id, a.s.x, a.s.d, a.s.m, a.s.lk, a.s.st, a.s.e, a.s.sc ?? 1, a.s.p || 0, a.s.c || 0, a.s.k || 0]); }
       const out = JSON.stringify({ t: "all", n: total, list });
       for (const w of socks) { try { w.send(out); } catch {} }
     }
