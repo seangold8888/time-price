@@ -4,6 +4,10 @@
 <meta name="description" content="근심을 푸는 곳. 빈 칸에 들어가 근심 한 줄 적고, 목탁 치고 물 내리면 끝. 적은 글은 어디에도 남지 않아요.">
 <meta property="og:title" content="해우소 — 근심 푸는 곳">
 <meta property="og:description" content="근심 한 줄 적고 물 내리기. 오늘 같이 내려보낸 사람들이 있어요.">
+<meta property="og:image" content="https://seangold8888.github.io/time-price/haewoo/og.png">
+<meta property="og:url" content="https://seangold8888.github.io/time-price/haewoo/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#dfe9e6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,6 +74,8 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
 .hwadu p { font: 26px/1.4 var(--brush); margin: 10px 0 8px; }
 .hwadu .sub { font: 500 13px var(--body); color: #6b6355; margin: 0 0 16px; }
 .hwadu a.call[hidden] { display: none; }
+.hwacts { display: flex; gap: 8px; justify-content: center; }
+.hwacts .chip { background: #f3e2a9; color: #8a1f14; }
 .hwadu a.call { display: block; margin: 0 0 10px; padding: 13px; border-radius: 999px; background: var(--red); color: #fff; font: 700 15px var(--body); text-decoration: none; }
 
 .toast { position: fixed; left: 50%; top: calc(16% + env(safe-area-inset-top, 0px)); transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px);
@@ -80,7 +86,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
 
 <div class="stage"><canvas id="cv" aria-label="해우소. 칸이 네 개 있어요. 빈 칸을 누르거나 아래 버튼으로 들어가요."></canvas></div>
 <div class="toast" id="toast" role="status"></div>
-<div class="hud"><div class="row"><a class="chip back" id="back" href="../">← 내시간역</a><button class="go" id="enter" type="button">빈 칸에 들어가기</button></div></div>
+<div class="hud"><div class="row"><a class="chip back" id="back" href="/time-price/">← 내시간역</a><button class="go" id="enter" type="button">빈 칸에 들어가기</button></div></div>
 
 <div class="inside" id="inside" hidden>
   <div class="paper" id="paper">
@@ -98,7 +104,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
     <p id="hwText">물 두 잔 마시기</p>
     <a class="call" id="hwCall" href="tel:109" hidden>109에 전화하기 (24시간)</a>
     <div class="sub" id="hwSub">근심 하나 내려보냈어요</div>
-    <button class="go" id="done" type="button">나가기</button>
+    <div class="hwacts"><button class="chip" id="save" type="button">부적으로 저장</button><button class="go" id="done" type="button">나가기</button></div>
   </div>
 </div>
 
@@ -320,7 +326,10 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
   // ---------- 그리기: 칸 안 ----------
   let flushT0 = -1, flushText = "";
   function drawInside(t) {
-    g.fillStyle = "#dfe9e6"; g.fillRect(0, 0, W, H);
+    const fl0 = flushT0 >= 0 ? t - flushT0 : -1;
+    g.save();
+    if (fl0 >= 0 && fl0 < 1000) { const a = 4 * (1 - fl0 / 1000); g.translate((Math.random() - 0.5) * a * 2, (Math.random() - 0.5) * a * 2); } // 물 내릴 때 칸이 덜덜
+    g.fillStyle = "#dfe9e6"; g.fillRect(-10, -10, W + 20, H + 20);
     g.strokeStyle = "#c6d4d0"; g.lineWidth = 1;
     for (let y = 0; y < H; y += 20) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
     for (let x = 10; x < W; x += 20) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
@@ -353,12 +362,57 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
         const ang = p * 7 + i, r = (1 - p) * 60;
         const x = p < 0.35 ? sx + (bx - sx) * (p / 0.35) * 0.7 : bx + Math.cos(ang) * r;
         const y = p < 0.35 ? sy + (by - sy) * (p / 0.35) * 0.9 : by + 2 + Math.sin(ang) * r * 0.3;
-        g.globalAlpha = 1 - Math.pow(p, 3); g.fillStyle = "#1b2329"; g.fillText(ch, x, y);
+        g.globalAlpha = 1 - Math.pow(p, 3); g.fillStyle = "#1b2329";
+        g.font = `${Math.round(28 * (1 - p * 0.75))}px "Nanum Pen Script", cursive`; g.fillText(ch, x, y);
       });
+      // 튀는 물방울
+      if (flushing < 1300) for (let i = 0; i < 14; i++) {
+        const k = flushing / 1300, ang = -Math.PI * (0.15 + 0.7 * ((i * 37) % 14) / 14), v = 70 + (i * 23) % 50;
+        const dx = Math.cos(ang) * v * k * 1.6, dy = Math.sin(ang) * v * k * 1.6 + 160 * k * k;
+        g.globalAlpha = 1 - k; g.fillStyle = "#7fc4e0"; g.beginPath(); g.ellipse(bx + dx, by - 4 + dy, 3, 4, 0, 0, Math.PI * 2); g.fill();
+      }
+      const pop = Math.min(1, flushing / 180), sc = 0.6 + pop * 0.5 - Math.max(0, (flushing - 180) / 2400) * 0.2;
       g.globalAlpha = Math.max(0, 1 - flushing / 2400);
-      g.fillStyle = "#2f7fd6"; g.font = '40px "Do Hyeon", sans-serif'; g.fillText("쏴아아~", bx + Math.sin(t / 60) * 3, by - 160);
+      g.save(); g.translate(bx + Math.sin(t / 60) * 3, by - 160); g.scale(sc, sc); g.rotate(Math.sin(t / 90) * 0.04);
+      g.fillStyle = "#2f7fd6"; g.strokeStyle = "#fff"; g.lineWidth = 6; g.lineJoin = "round"; g.font = '48px "Do Hyeon", sans-serif';
+      g.strokeText("쏴아아~", 0, 0); g.fillText("쏴아아~", 0, 0); g.restore();
       g.globalAlpha = 1;
     }
+    g.restore();
+  }
+
+  // ---------- 오늘의 화두 부적 (이미지로 저장·공유) ----------
+  function wrapLines(ctx, text, maxW) {
+    const out = []; let line = "";
+    for (const w of text.split(" ")) { const tryL = line ? line + " " + w : w; if (ctx.measureText(tryL).width > maxW && line) { out.push(line); line = w; } else line = tryL; }
+    if (line) out.push(line); return out;
+  }
+  async function makeTalisman(text) {
+    try { await Promise.all([document.fonts.load('80px "Song Myung"', text + "解憂所오늘의화두"), document.fonts.load('30px "Gowun Dodum"', "근심 하나 내려보냄")]); } catch (e) {}
+    const c = document.createElement("canvas"); c.width = 1080; c.height = 1440; const x = c.getContext("2d");
+    const bg = x.createLinearGradient(0, 0, 0, 1440); bg.addColorStop(0, "#f6dc7a"); bg.addColorStop(1, "#eec95a"); x.fillStyle = bg; x.fillRect(0, 0, 1080, 1440);
+    for (let i = 0; i < 900; i++) { x.fillStyle = `rgba(150,100,20,${Math.random() * 0.06})`; x.fillRect(Math.random() * 1080, Math.random() * 1440, 2 + Math.random() * 3, 1 + Math.random() * 2); } // 종이결
+    x.strokeStyle = "#b8261a"; x.lineWidth = 10; x.strokeRect(60, 60, 960, 1320); x.lineWidth = 3; x.strokeRect(84, 84, 912, 1272);
+    x.fillStyle = "#b8261a"; x.textAlign = "center"; x.textBaseline = "middle";
+    x.font = '120px "Song Myung", serif'; x.fillText("解憂所", 540, 250);
+    x.font = '40px "Gowun Dodum", sans-serif'; x.fillText("— 오늘의 화두 —", 540, 380);
+    x.font = '96px "Song Myung", serif';
+    const lines = wrapLines(x, text, 800), y0 = 720 - (lines.length - 1) * 65;
+    lines.forEach((l, i) => x.fillText(l, 540, y0 + i * 130));
+    // 도장
+    x.save(); x.translate(800, 1110); x.rotate(-0.12); x.strokeStyle = "#c8372b"; x.lineWidth = 8; x.strokeRect(-80, -80, 160, 160);
+    x.fillStyle = "#c8372b"; x.font = '56px "Song Myung", serif'; x.fillText("근심", 0, -26); x.fillText("해소", 0, 38); x.restore();
+    x.fillStyle = "#7a3a12"; x.font = '34px "Gowun Dodum", sans-serif'; x.fillText(`근심 하나 내려보냄 · ${new Date().toLocaleDateString("ko-KR")}`, 470, 1240);
+    x.font = '30px "Gowun Dodum", sans-serif'; x.fillText("seangold8888.github.io/time-price/haewoo", 540, 1310);
+    return await new Promise(r => c.toBlob(r, "image/png"));
+  }
+  async function saveTalisman() {
+    const blob = await makeTalisman($("hwText").textContent || "");
+    if (!blob) return;
+    const file = new File([blob], "haewoo-hwadu.png", { type: "image/png" });
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "오늘의 화두" }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "haewoo-hwadu.png"; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast("부적을 저장했어요", 1600);
   }
 
   // ---------- 소리 (누를 때만) ----------
@@ -479,6 +533,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
     $("inside").hidden = true; $("enter").hidden = false; $("back").hidden = false; flushT0 = -1; send();
   }
   $("leave").addEventListener("click", leaveStall);
+  $("save").addEventListener("click", () => { saveTalisman().catch(() => toast("저장에 실패했어요", 1600)); });
   $("done").addEventListener("click", () => {
     const text = flushText;
     leaveStall();
@@ -491,6 +546,7 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
     flushText = text || "그냥 다 귀찮음";
     const crisis = CRISIS.test(text);
     knock(); setTimeout(knock, 160); whoosh();
+    try { navigator.vibrate && navigator.vibrate([25, 40, 60, 40, 140]); } catch (e) {} // 안드로이드만 (아이폰 웹은 진동 없음)
     $("paper").hidden = true; $("worry").blur();
     flushT0 = performance.now();
     // 서버에는 카드 번호만 (자유 글은 보내지 않는다)
@@ -502,12 +558,12 @@ textarea { width: 100%; height: 84px; resize: none; border: 1.5px solid #d9ccb0;
       if (crisis) {
         $("hwTag").textContent = "잠깐만요";
         $("hwText").textContent = "많이 힘드셨죠. 혼자 견디지 않아도 돼요.";
-        $("hwCall").hidden = false;
+        $("hwCall").hidden = false; $("save").hidden = true;
         $("hwSub").textContent = "자살예방상담전화 109 · 24시간 · 비밀 보장";
       } else {
         $("hwTag").textContent = "오늘의 화두";
         $("hwText").textContent = HWADU[Math.floor(Math.random() * HWADU.length)];
-        $("hwCall").hidden = true;
+        $("hwCall").hidden = true; $("save").hidden = false;
         $("hwSub").textContent = mine.n > 1 ? `오늘 내가 내려보낸 근심 ${mine.n}개` : "근심 하나 내려보냈어요";
       }
     }, 2300);
