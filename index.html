@@ -920,7 +920,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "nongddaengi-receipt.png"; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast("영수증을 저장했어요", 1600);
   }
-  const goWc = () => { saveLupan(); location.href = "haewoo/?from=" + curScene; };
+  const goWc = () => { saveLupan(); location.href = "/haewoo/?from=" + curScene; };
 
   // 오른쪽 아래: 다음 장소 안내 ("다음 17:00 내시간역")
   // 위쪽 장소 탭: [옥상] [지하철] [찜질방], 초록 점 = 지금 시간 장소
