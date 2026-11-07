@@ -169,7 +169,8 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 
   // 시험용: 주소 끝에 ?at=18:30 을 붙이면 그 시각인 것처럼 돌아간다 (평소엔 폰 시각 그대로)
   const AT = (new URLSearchParams(location.search).get("at") || "").match(/^(\d{1,2}):(\d{2})$/);
-  const T_OFF = AT ? (() => { const d = new Date(); d.setHours(+AT[1], +AT[2], 0, 0); return d.getTime() - Date.now(); })() : 0;
+  // ?at=09:00&wd=1 이면 가장 가까운 평일(월~금)의 그 시각
+  const T_OFF = AT ? (() => { const d = new Date(); d.setHours(+AT[1], +AT[2], 0, 0); if (new URLSearchParams(location.search).has("wd")) while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return d.getTime() - Date.now(); })() : 0;
   const clock = () => Date.now() + T_OFF;
 
   // ---------- 장소: 시각에 따라 바뀐다 (평일 07~17 회사 옥상, 17~19 퇴근길 내시간역, 그 밖·주말 찜질방) ----------
@@ -314,7 +315,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 
   // o: { lk, label, isMe, walking, now, alpha, scene, pose("stand"|"lie"), c, p, k, npc }
   function drawPerson(x, d, o) {
-    const { lk = 0, label = "", isMe = false, walking = false, now = 0, alpha = 1, scene = "station", pose = "stand", c = 0, p = 0, k = 0, npc = false } = o;
+    const { lk = 0, label = "", isMe = false, walking = false, now = 0, alpha = 1, scene = "station", pose = "stand", c = 0, p = 0, k = 0, npc = false, phone = false } = o;
     const y = depthY(d), s = depthS(d), lie = pose === "lie", sauna = scene === "sauna";
     const bob = walking ? Math.abs(Math.sin(now / 110)) * 2.2 : lie ? 0 : Math.sin(now / 700 + x) * 0.8;
     g.save(); g.globalAlpha = alpha;
@@ -367,6 +368,13 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     g.beginPath(); g.arc(-4.5, -59.5, 2, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
     g.beginPath(); g.arc(4.5, -59.5, 2, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
     if (sauna && !npc) { g.fillStyle = "rgba(255,110,110,.35)"; g.beginPath(); g.arc(-7, -55, 2.6, 0, Math.PI * 2); g.arc(7, -55, 2.6, 0, Math.PI * 2); g.fill(); }
+    // 폰 들여다보기 (9시 장 시작)
+    if (phone && !lie) {
+      g.strokeStyle = SKIN[(lk * 5 + 1) % 6]; g.lineWidth = 4; g.lineCap = "round";
+      g.beginPath(); g.moveTo(9, -44); g.lineTo(6, -51); g.stroke();
+      g.fillStyle = "#1b2329"; roundRect(0, -60, 10, 15, 2); g.fill();
+      g.fillStyle = Math.floor(now / 700 + x) % 2 ? "#ff8a80" : "#8ab4ff"; g.fillRect(1.5, -58, 7, 11);
+    }
     g.restore();
     // 소품
     if (p) drawProp(scene, p, x + (lie ? 50 : 24) * s, y, s, now);
@@ -1036,6 +1044,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       o.k = Number.isInteger(kk) && kk >= 0 ? Math.min(99, kk) : 0;
       const ne = e >= 1 && e <= 3 ? Math.floor(e) : 0;
       if (ne !== o.e) { o.e = ne; if (ne) o.eT = performance.now(); }
+      o.id = p.peer;
       others.set(p.peer, o);
     }
     for (const k of [...others.keys()]) if (!seen.has(k)) others.delete(k);
@@ -1281,7 +1290,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   }
 
   // 내 머리 위: 루팡 금액(근무 중) + 튀어 오르는 동전 + 한숨
-  function drawMyHud(hx, topY, t, dt, now) {
+  function drawMyHud(hx, topY, t, dt, now, lift = 0) {
     const sc = schedule(now), perSec = hourly() / 3600, work = sc.mode === "work" || sc.mode === "lunch";
     if (work) {
       const txt = (sc.mode === "lunch" ? "점심 · 루팡 " : "루팡 ") + comma(lupan.ms / 1000 * perSec) + "원";
@@ -1292,7 +1301,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       const sec = Math.floor(now / 1000);
       if (sc.mode === "work" && sec !== lastCoinSec) { lastCoinSec = sec; coins.push({ x: hx + (Math.random() * 24 - 12), y: topY - 4, t: 0 }); }
     }
-    drawEmote(hx, topY - (work ? 22 : 4), myEmote.lv, t - myEmote.t0);
+    drawEmote(hx, topY - lift - (work ? 22 : 4), myEmote.lv, t - myEmote.t0);
     const coinTxt = "+" + (perSec < 10 ? perSec.toFixed(1) : comma(perSec)) + "원";
     g.font = '600 11px "Nanum Gothic Coding", monospace'; g.textAlign = "center";
     for (const c of coins) { c.t += dt; c.y -= dt * 0.028; g.globalAlpha = Math.max(0, 1 - c.t / 1100); g.fillStyle = "#ffcf3f"; g.fillText(coinTxt, c.x, c.y); }
@@ -1302,13 +1311,50 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 
   // ---------- 옥상·찜질방 한 프레임 ----------
   let pops = [];
+  // ---------- 아침 9시 장 시작: 옥상 풀방, 다들 폰으로 주식 확인 (머리 위 수익률은 재미로 만든 가짜) ----------
+  function market(now) {
+    const d = new Date(now), day = d.getDay(); if (day === 0 || day === 6) return null;
+    const m = d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+    if (m >= 535 && m < 540) return { ph: "pre", left: (540 - m) * 60000 };
+    if (m >= 540 && m < 570) return { ph: "open" };
+    if (m >= 920 && m < 930) return { ph: "closing", left: (930 - m) * 60000 };
+    if (m >= 930 && m < 935) return { ph: "closed" };
+    return null;
+  }
+  const UPW = ["떡상", "익절 각", "가즈아", "빨간 맛"], DNW = ["물렸다", "존버", "파란 맛", "손절각"];
+  function fakeStock(key, now) { // 날짜+사람마다 정해진 가짜 수익률 (모두에게 같게 보임), 조금씩 출렁인다
+    let h = 2166136261; const s = new Date(now).toDateString() + "|" + key;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    h >>>= 0;
+    const r1 = (h % 10000) / 10000, r2 = (Math.floor(h / 10000) % 1000) / 1000;
+    const base = r1 < 0.55 ? 0.3 + r2 * r2 * 12 : -(0.3 + r2 * r2 * 15);
+    const v = base + Math.sin(now / 9000 + r1 * 10) * 0.6;
+    return { up: v >= 0, pct: Math.max(0.1, Math.abs(v)).toFixed(1), word: (v >= 0 ? UPW : DNW)[(h >>> 3) % 4] };
+  }
+  function drawStockPill(x, y, st, small) {
+    const txt = `${st.up ? "▲" : "▼"}${st.pct}% ${st.word}`;
+    g.save(); g.font = `700 ${small ? 10 : 11}px "Gowun Dodum", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+    const w = g.measureText(txt).width + 14, hh = small ? 15 : 17;
+    g.fillStyle = st.up ? "#e5383b" : "#2f6fd6"; roundRect(x - w / 2, y, w, hh, hh / 2); g.fill();
+    g.fillStyle = "#fff"; g.fillText(txt, x, y + hh / 2 + 0.5); g.restore();
+  }
+  let bellT = -1e9, prevMk = null;
+  const RUSH_NPC = [[60, -0.06, 2], [302, 0.0, 8], [168, 0.22, 4], [256, 0.42, 10], [92, 0.52, 6], [214, 0.68, 12]];
+
   function stepRest(t, dt, now) {
     const roof = curScene === "roof", sc = schedule(now);
     const lu = lupan.ms / 1000 * hourly() / 3600;
+    const mk = roof ? market(now) : null, stockOn = mk && (mk.ph === "open" || mk.ph === "closing");
+    if (mk && mk.ph === "open" && prevMk !== "open") bellT = t;
+    prevMk = mk ? mk.ph : null;
     if (roof) {
       drawRoof(now, dt, t);
-      const head = sc.mode === "work" || sc.mode === "lunch" ? `퇴근까지 ${hms(sc.toOff)}` : sc.mode === "before" ? `출근까지 ${hms(sc.toWork)}` : "회사 옥상";
-      const lines = [lu >= 1 ? `오늘 합법적 농땡이 ${comma(lu)}원어치 · 전광판 누르면 영수증` : "옥상은 오늘도 조용합니다", "옥상은 CCTV 사각지대입니다 (아마도)"];
+      let head = sc.mode === "work" || sc.mode === "lunch" ? `퇴근까지 ${hms(sc.toOff)}` : sc.mode === "before" ? `출근까지 ${hms(sc.toWork)}` : "회사 옥상";
+      let lines = [lu >= 1 ? `오늘 합법적 농땡이 ${comma(lu)}원어치 · 전광판 누르면 영수증` : "옥상은 오늘도 조용합니다", "옥상은 CCTV 사각지대입니다 (아마도)"];
+      if (mk) {
+        head = mk.ph === "pre" ? `장 시작까지 ${hms(mk.left)}` : mk.ph === "open" ? "장 시작! 옥상 풀방" : mk.ph === "closing" ? `장 마감까지 ${hms(mk.left)}` : "장 마감 · 오늘도 수고했어요";
+        lines = ["전 직원 주식 확인 중", "※ 머리 위 수익률은 재미로 만든 가짜예요", lines[0]];
+      }
       drawBoard(false, head, lines.join("   ·   "), dt);
     } else {
       drawSauna(now, dt, t);
@@ -1329,6 +1375,9 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     }
     const items = [];
     // 배경 사람(가격표 없음): 혼자일 때 덜 썰렁하게
+    // 9시 장 시작 전후: 옥상 풀방 (회색 동료들이 폰 들고 몰려온다)
+    const rush = mk && mk.ph !== "closed" && others.size < 8 ? RUSH_NPC : [];
+    for (const [x, d, sd] of rush) items.push({ y: depthY(d), f: () => drawNPC(x, depthY(d), sd, t) });
     if (others.size < 4) {
       if (roof) [[112, -0.2, 7], [236, -0.17, 12]].forEach(([x, d, sd]) => items.push({ y: depthY(d), f: () => drawNPC(x, depthY(d), sd, t) }));
       else [[150, -0.2, 2], [252, -0.12, 4]].forEach(([x, d, lk]) => items.push({ y: depthY(d), f: () => drawPerson(x, d, { lk, scene: "sauna", pose: "lie", npc: true, alpha: 0.7, now: t }) }));
@@ -1339,15 +1388,29 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       o.dx += (o.x - o.dx) * Math.min(1, dt / 250);
       if (o.sc !== SCENES.indexOf(curScene)) continue;
       peers.push(o);
-      items.push({ y: depthY(o.d), f: () => drawPerson(o.dx * W, o.d, { lk: o.lk, label: working ? `루팡 ${o.m}분` : `${o.m}분째`, walking: Math.abs(o.x - o.dx) > 0.004, now: t, scene: curScene, pose: o.st === "lie" ? "lie" : "stand", c: o.c, p: o.p, k: o.k }) });
+      items.push({ y: depthY(o.d), f: () => drawPerson(o.dx * W, o.d, { lk: o.lk, label: working ? `루팡 ${o.m}분` : `${o.m}분째`, walking: Math.abs(o.x - o.dx) > 0.004, now: t, scene: curScene, pose: o.st === "lie" ? "lie" : "stand", c: o.c, p: o.p, k: o.k, phone: stockOn }) });
     }
-    items.push({ y: my, f: () => drawPerson(me.x * W, me.depth, { lk: look, label: "나", isMe: true, walking, now: t, scene: curScene, pose: lie ? "lie" : "stand", c: myColor, p: myProp[curScene], k: roof ? 0 : eggs.n }) });
+    items.push({ y: my, f: () => drawPerson(me.x * W, me.depth, { lk: look, label: "나", isMe: true, walking, now: t, scene: curScene, pose: lie ? "lie" : "stand", c: myColor, p: myProp[curScene], k: roof ? 0 : eggs.n, phone: stockOn }) });
     items.sort((a, b) => a.y - b.y);
     for (const it of items) it.f();
+    // 머리 위 가짜 수익률 (빨강 ▲ 상승, 파랑 ▼ 하락)
+    if (stockOn) {
+      for (const [x, d, sd] of rush) { const y = depthY(d), ns = 0.78 + ((y - PT) / 400) * 0.25; drawStockPill(x, y - 84 * ns, fakeStock("npc" + sd, now), true); }
+      for (const o of peers) if (o.st !== "lie") { const os = depthS(o.d); drawStockPill(o.dx * W, depthY(o.d) - 108 * os, fakeStock(o.id || "p", now)); }
+    }
+    // 땡! 장 시작
+    if (t - bellT < 2600) {
+      const k = (t - bellT) / 2600, a = Math.min(1, (1 - k) * 3);
+      g.save(); g.globalAlpha = a; g.translate(W / 2 + (k < 0.3 ? (Math.random() - 0.5) * 6 : 0), 150); g.scale(0.8 + Math.min(1, k * 8) * 0.4, 0.8 + Math.min(1, k * 8) * 0.4);
+      g.font = '46px "Do Hyeon", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle"; g.lineJoin = "round";
+      g.strokeStyle = "#fff"; g.lineWidth = 8; g.strokeText("땡! 장 시작", 0, 0); g.fillStyle = "#e5383b"; g.fillText("땡! 장 시작", 0, 0);
+      g.restore();
+    }
     if (!roof && saunaNight(now)) { g.fillStyle = "rgba(8,10,28,.35)"; g.fillRect(0, 0, W, H); }
     // 머리 위
     const hx = lie ? me.x * W - 25 * s : me.x * W, topY = my - (lie ? 72 : 112) * s;
-    drawMyHud(hx, topY, t, dt, now);
+    drawMyHud(hx, topY, t, dt, now, stockOn ? 22 : 0);
+    if (stockOn) drawStockPill(hx, topY - (working ? 22 : 0), fakeStock("me" + look + myColor, now));
     for (const o of peers) if (o.e) { const os = depthS(o.d); drawEmote(o.st === "lie" ? o.dx * W - 25 * os : o.dx * W, depthY(o.d) - (o.st === "lie" ? 72 : 112) * os, o.e, t - o.eT); }
     // +계란
     g.font = '700 12px "Gowun Dodum", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
