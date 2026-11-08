@@ -170,9 +170,9 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   const PT = 86 + (426 - 86) * K;                   // 승강장 바닥이 시작하는 y
 
   // 시험용: 주소 끝에 ?at=18:30 을 붙이면 그 시각인 것처럼 돌아간다 (평소엔 폰 시각 그대로)
-  const AT = (new URLSearchParams(location.search).get("at") || "").match(/^(\d{1,2}):(\d{2})$/);
+  const AT = (new URLSearchParams(location.search).get("at") || "").match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   // ?at=09:00&wd=1 이면 가장 가까운 평일(월~금)의 그 시각
-  const T_OFF = AT ? (() => { const d = new Date(); d.setHours(+AT[1], +AT[2], 0, 0); if (new URLSearchParams(location.search).has("wd")) while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return d.getTime() - Date.now(); })() : 0;
+  const T_OFF = AT ? (() => { const d = new Date(); d.setHours(+AT[1], +AT[2], +(AT[3] || 0), 0); if (new URLSearchParams(location.search).has("wd")) while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return d.getTime() - Date.now(); })() : 0;
   const clock = () => Date.now() + T_OFF;
 
   // ---------- 장소: 시각에 따라 바뀐다 (평일 07~17 회사 옥상, 17~19 퇴근길 내시간역, 그 밖·주말 찜질방) ----------
@@ -1337,13 +1337,16 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   function roofEvent(now) {
     const d = new Date(now), day = d.getDay(); if (day === 0 || day === 6) return null;
     const m = d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60, at = (a, b) => m >= a && m < b;
-    if (at(535, 540)) return { k: "stock", ph: "pre", left: (540 - m) * 60000 };
-    if (at(540, 555)) return { k: "stock", ph: "open" };
+    // el = 모이기 시작한 뒤 흐른 시간(하나둘 도착), f = 흩어지는 진행도
+    if (at(535, 540)) return { k: "stock", ph: "pre", left: (540 - m) * 60000, el: (m - 535) * 60000 };
+    if (at(540, 555)) return { k: "stock", ph: "open", el: (m - 535) * 60000 };
     if (at(555, 556.5)) return { k: "stock", ph: "leave", f: (m - 555) / 1.5 };
-    if (at(690, 720)) return { k: "lunch", ph: "pick", left: (720 - m) * 60000 };
+    if (at(690, 720)) return { k: "lunch", ph: "pick", left: (720 - m) * 60000, el: (m - 690) * 60000 };
     if (at(720, 721.5)) return { k: "lunch", ph: "leave", f: (m - 720) / 1.5 };
-    if (at(840, 860)) return { k: "nap", ph: "on" };
-    if (at(920, 930)) return { k: "stock", ph: "closing", left: (930 - m) * 60000 };
+    if (at(840, 860)) return { k: "nap", ph: "on", el: (m - 840) * 60000 };
+    if (at(860, 861.5)) return { k: "nap", ph: "leave", f: (m - 860) / 1.5 };
+    if (at(920, 930)) return { k: "stock", ph: "closing", left: (930 - m) * 60000, el: (m - 920) * 60000 };
+    if (at(930, 931.5)) return { k: "close", ph: "leave", f: (m - 930) / 1.5 };
     return null;
   }
   function dayHash(key, now) { // 날짜+키마다 정해진 값 (모두에게 같게 보임)
@@ -1432,7 +1435,8 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     g.save(); g.font = `700 ${10 * s}px "Gowun Dodum", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
     g.fillStyle = "#fff"; g.strokeStyle = "rgba(0,0,0,.55)"; g.lineWidth = 3; g.strokeText("수혈용", x, y + 9 * s); g.fillText("수혈용", x, y + 9 * s); g.restore();
   }
-  let bell = { t: -1e9, txt: "", col: "#e5383b" }, prevEv = "";
+  let bell = { t: -1e9, txt: "", col: "#e5383b" }, prevEv = null;
+  const pkey = (lk, c) => "p" + lk + "-" + c; // 기분·메뉴 키: 생김새+색 → 내 화면과 남의 화면에서 같게 보임
   const RUSH_NPC = [[60, -0.06, 2], [300, 0.86, 8], [168, 0.22, 4], [256, 0.42, 10], [92, 0.52, 6], [214, 0.68, 12]];
 
   function stepRest(t, dt, now) {
@@ -1440,15 +1444,18 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     const lu = lupan.ms / 1000 * hourly() / 3600;
     const ev = roof ? roofEvent(now) : null, evk = ev ? ev.k + ev.ph : "";
     const stockOn = !!ev && ev.k === "stock" && (ev.ph === "open" || ev.ph === "closing");
-    const lunchOn = !!ev && ev.k === "lunch" && ev.ph === "pick", napOn = !!ev && ev.k === "nap";
+    const lunchOn = !!ev && ev.k === "lunch" && ev.ph === "pick", napOn = !!ev && ev.k === "nap" && ev.ph === "on";
     const leaving = ev && ev.ph === "leave" ? ev.f : -1;
-    if (evk !== prevEv) {
-      if (evk === "stockopen") bell = { t, txt: "땡! 장 시작", col: "#e5383b" };
-      else if (evk === "stockleave") bell = { t, txt: "일하는 척 모드", col: "#3f4a54" };
-      else if (evk === "lunchleave") bell = { t, txt: "땡! 점심", col: "#f08a2c" };
-      else if (evk === "napon") bell = { t, txt: "식곤증 경보", col: "#c99400" };
+    if (roof) { // 옥상에 있는 동안 실제로 바뀔 때만 '땡!' (처음 열 때·장소 오갈 때는 안 울림)
+      if (prevEv !== null && evk !== prevEv) {
+        myMenu = null;
+        if (evk === "stockopen") bell = { t, txt: "땡! 장 시작", col: "#e5383b" };
+        else if (evk === "stockleave") bell = { t, txt: "일하는 척 모드", col: "#3f4a54" };
+        else if (evk === "lunchleave") bell = { t, txt: "땡! 점심", col: "#f08a2c" };
+        else if (evk === "napon") bell = { t, txt: "식곤증 경보", col: "#c99400" };
+      }
+      prevEv = evk;
     }
-    prevEv = evk;
     // 팀장님 기습
     const cam = stockOn && ev.ph === "open" ? bossCam(now) : null;
     if (cam && boss.id !== cam.S) { boss = { id: cam.S, hid: false, done: false, ok: false, resT: -1e9 }; try { navigator.vibrate && navigator.vibrate([60, 40, 60]); } catch (e) {} }
@@ -1465,7 +1472,10 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
         } else if (ev.k === "lunch") {
           head = ev.ph === "pick" ? `점심까지 ${hms(ev.left)}` : "점심 출발!";
           lines = ev.ph === "pick" ? ["점심 메뉴 눈치게임 중", "버튼 눌러 내 메뉴 돌리기"] : ["우르르 엘리베이터로"];
-        } else { head = "식곤증 경보"; lines = ["수혈용 아아 투하 중", "떨어진 아아로 걸어가면 수혈", L]; }
+        } else if (ev.k === "nap") {
+          head = ev.ph === "on" ? "식곤증 경보" : "식곤증 해제";
+          lines = ev.ph === "on" ? ["수혈용 아아 투하 중", "떨어진 아아로 걸어가면 수혈", L] : ["다들 정신 차리고 복귀", L];
+        } else { head = "장 마감"; lines = ["오늘 장 끝 · 다들 자리로", L]; }
       }
       drawBoard(false, head, lines.join("   ·   "), dt);
       if (cam) drawBoss(cam.age);
@@ -1489,11 +1499,16 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     const items = [];
     // 풀방 이벤트 땐 회색 동료들이 몰려온다 (가격표 없는 배경 인물)
     const crowd = ev && others.size < 8 ? RUSH_NPC : [];
-    const npcPos = (x, d) => leaving >= 0 ? { x: x + (303 - x) * leaving, d: d + (-0.25 - d) * leaving, a: 1 - leaving } : { x, d, a: 1 };
+    const npcPos = (x, d, i) => {
+      if (leaving >= 0) return { x: x + (303 - x) * leaving, d: d + (-0.25 - d) * leaving, a: 1 - leaving };
+      const a = ev && ev.el != null ? Math.max(0, Math.min(1, (ev.el - i * 36000) / 9000)) : 1; // 36초 간격으로 하나둘 도착
+      return { x: 303 + (x - 303) * a, d: -0.25 + (d + 0.25) * a, a };
+    };
     const caught = sd => sd % 3 === 0; // 셋 중 하나는 팀장님한테 걸린다
-    for (const [x0, d0, sd] of crowd) {
-      const p = npcPos(x0, d0), y = depthY(p.d);
-      if (napOn && sd % 4 === 0) { items.push({ y, f: () => drawPerson(p.x, p.d, { lk: sd, scene: "roof", pose: "lie", npc: true, alpha: 0.9, now: t }) }); continue; }
+    for (const [i, [x0, d0, sd]] of crowd.entries()) {
+      const p = npcPos(x0, d0, i), y = depthY(p.d);
+      if (p.a <= 0) continue;
+      if (napOn && sd % 4 === 0 && p.a >= 1) { items.push({ y, f: () => drawPerson(p.x, p.d, { lk: sd, scene: "roof", pose: "lie", npc: true, alpha: 0.9, now: t }) }); continue; }
       const hide = cam && cam.age > 700 && !caught(sd);
       const phone = stockOn ? !hide : !!ev && ev.k === "stock" && ev.ph === "pre";
       const mood = stockOn ? moodOf("npc" + sd, now).v : 0;
@@ -1509,11 +1524,11 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       o.dx += (o.x - o.dx) * Math.min(1, dt / 250);
       if (o.sc !== SCENES.indexOf(curScene)) continue;
       peers.push(o);
-      const om = stockOn ? moodOf(o.id || "p", now).v : 0;
+      const om = stockOn ? moodOf(pkey(o.lk, o.c), now).v : 0;
       items.push({ y: depthY(o.d), f: () => drawPerson(o.dx * W, o.d, { lk: o.lk, label: working ? `루팡 ${o.m}분` : `${o.m}분째`, walking: Math.abs(o.x - o.dx) > 0.004, now: t, scene: curScene, pose: o.st === "lie" ? "lie" : "stand", c: o.c, p: o.p, k: o.k, phone: stockOn, mood: om, doze: napOn }) });
     }
     // 내 상태
-    const myKey = "me" + look + myColor, myMood = moodOf(myKey, now);
+    const myKey = pkey(look, myColor), myMood = moodOf(myKey, now);
     const myPhone = stockOn && !(cam && boss.hid);
     const meDoze = napOn && t - awake > 25 * 60000 && !walking;
     items.push({ y: my, f: () => drawPerson(me.x * W, me.depth, { lk: look, label: "나", isMe: true, walking, now: t, scene: curScene, pose: lie ? "lie" : "stand", c: myColor, p: myProp[curScene], k: roof ? 0 : eggs.n, phone: myPhone, mood: stockOn ? myMood.v : 0, doze: meDoze }) });
@@ -1532,9 +1547,10 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     for (const it of items) it.f();
     if (napOn) { g.fillStyle = "rgba(255,206,70,.15)"; g.fillRect(0, 0, W, H); }
     // 머리 위: 장중엔 기분 한 줄, 점심 전엔 메뉴 슬롯
-    for (const [x0, d0, sd] of crowd) {
+    for (const [i, [x0, d0, sd]] of crowd.entries()) {
       if (napOn) continue;
-      const p = npcPos(x0, d0), y = depthY(p.d), hy = y - 90 * (0.78 + ((y - PT) / 400) * 0.25);
+      const p = npcPos(x0, d0, i), y = depthY(p.d), hy = y - 90 * (0.78 + ((y - PT) / 400) * 0.25);
+      if (p.a < 1) continue; // 걸어오는 중엔 말풍선 없음
       if (!lie && Math.abs(p.x - me.x * W) < 70 && Math.abs(y - my) < 100) continue; // 내 말풍선과 겹치면 생략
       if (stockOn) {
         const md = moodOf("npc" + sd, now), ga = ghostAge(md, now);
@@ -1545,8 +1561,8 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     }
     for (const o of peers) if (o.st !== "lie" && (stockOn || lunchOn)) {
       const ox = o.dx * W, oy = depthY(o.d) - 112 * depthS(o.d);
-      if (stockOn) { const md = moodOf(o.id || "p", now), ga = ghostAge(md, now); drawMood(ox, oy, md); if (!o.e && ga >= 0 && ga < EMOTE_MS) drawEmote(ox, oy - 4, 2, ga); }
-      else drawMenu(ox, oy, menuOf(o.id || "p", now));
+      if (stockOn) { const md = moodOf(pkey(o.lk, o.c), now), ga = ghostAge(md, now); drawMood(ox, oy, md); if (!o.e && ga >= 0 && ga < EMOTE_MS) drawEmote(ox, oy - 4, 2, ga); }
+      else drawMenu(ox, oy, menuOf(pkey(o.lk, o.c), now));
     }
     // 땡!
     if (t - bell.t < 2600) {
