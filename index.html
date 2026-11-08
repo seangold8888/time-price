@@ -1360,9 +1360,10 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     "0": ["본전이면 다행", "차트만 멍하니", "오늘은 관망", "흔들리지 않는 편"]
   };
   const MOOD_EDGE = { "1": "#e5383b", "-1": "#2f6fd6", "0": "#8d969e" };
-  function moodOf(key, now) {
+  function moodOf(key, now, idx) { // idx: 배경 동료 번호 → 같은 화면에서 문구가 안 겹치게
     const h = dayHash(key, now), r = h % 100, v = r < 45 ? 1 : r < 85 ? -1 : 0, list = MOOD[v];
-    return { v, txt: list[(h >>> 7) % list.length], h };
+    const k = idx == null ? (h >>> 7) : dayHash("moodtxt", now) + idx * 3;
+    return { v, txt: list[k % list.length], h };
   }
   function drawBubble(x, y, txt, edge, small, hot) {
     g.save(); g.font = `700 ${small ? 10 : 11}px "Gowun Dodum", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
@@ -1515,7 +1516,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       if (napOn && sd % 4 === 0 && p.a >= 1) { items.push({ y, f: () => drawPerson(p.x, p.d, { lk: sd, scene: "roof", pose: "lie", npc: true, alpha: 0.9, now: t }) }); continue; }
       const hide = cam && cam.age > 700 && !caught(sd);
       const phone = stockOn ? !hide : !!ev && ev.k === "stock" && ev.ph === "pre";
-      const mood = stockOn ? moodOf("npc" + sd, now).v : 0;
+      const mood = stockOn ? moodOf("npc" + sd, now, i).v : 0;
       items.push({ y, f: () => drawNPC(p.x, y, sd, t, { alpha: p.a, phone, mood, doze: napOn }) });
     }
     if (others.size < 4) {
@@ -1557,7 +1558,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       if (p.a < 1) continue; // 걸어오는 중엔 말풍선 없음
       if (!lie && Math.abs(p.x - me.x * W) < 70 && Math.abs(y - my) < 100) continue; // 내 말풍선과 겹치면 생략
       if (stockOn) {
-        const md = moodOf("npc" + sd, now), ga = ghostAge(md, now);
+        const md = moodOf("npc" + sd, now, i), ga = ghostAge(md, now);
         drawMood(p.x, hy, md, true);
         if (ga >= 0 && ga < EMOTE_MS) drawEmote(p.x, hy - 4, 2, ga);
         if (boss.done && caught(sd)) drawStamp(p.x, hy + 30, "걸림", "#c8372b", t - boss.resT, 13);
