@@ -173,7 +173,10 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   const AT = (new URLSearchParams(location.search).get("at") || "").match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   // ?at=09:00&wd=1 이면 가장 가까운 평일(월~금)의 그 시각
   const T_OFF = AT ? (() => { const d = new Date(); d.setHours(+AT[1], +AT[2], +(AT[3] || 0), 0); if (new URLSearchParams(location.search).has("wd")) while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1); return d.getTime() - Date.now(); })() : 0;
-  const clock = () => Date.now() + T_OFF;
+  const realNow = () => Date.now() + T_OFF;
+  // 맛보기: 장 시작 시간이 아닐 때 온 사람도 '9시 옥상 풀방'을 30초쯤 겪어 보게 시계를 잠깐 돌려 놓는다
+  let reh = null;
+  const clock = () => realNow() + (reh ? reh.off : 0);
 
   // ---------- 장소: 시각에 따라 바뀐다 (평일 07~17 회사 옥상, 17~19 퇴근길 내시간역, 그 밖·주말 찜질방) ----------
   // 시험용: ?scene=roof|station|sauna
@@ -193,6 +196,37 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     if (h >= 17 && h < 19) return "station";
     if (h >= 7 && h < 17) return "roof";
     return "sauna";
+  }
+  function nextRush(ms) { // 다음 평일 08:55
+    const d = new Date(ms); d.setHours(8, 55, 0, 0);
+    while (d.getTime() <= ms || d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+    return d.getTime();
+  }
+  function rushText(ms) {
+    const at = nextRush(ms), a0 = new Date(at), n0 = new Date(ms); a0.setHours(0, 0, 0, 0); n0.setHours(0, 0, 0, 0);
+    const dd = Math.round((a0 - n0) / 864e5), left = at - ms, h = Math.floor(left / 36e5), m = Math.floor(left % 36e5 / 6e4);
+    const day = dd === 0 ? "오늘" : dd === 1 ? "내일" : "일월화수목금토"[new Date(at).getDay()] + "요일";
+    const rem = h >= 24 ? `${Math.floor(h / 24)}일 ${h % 24}시간` : h >= 1 ? `${h}시간 ${m}분` : m >= 1 ? `${m}분` : "1분도 안";
+    return { day, rem };
+  }
+  const TASTE = { lead: 8000, boss: 21000, end: 32000 }; // 8초 뒤 벨, 21초에 팀장님, 32초에 끝
+  let hushUntil = 0; // 맛보기 들어가고 나올 때는 장소 안내 대신 맛보기 안내를 띄운다
+  function startTaste() {
+    if (reh || ["ride", "in", "going"].includes(me.st)) return;
+    const d = new Date(realNow()); d.setHours(9, 0, 0, 0);
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+    const start = d.getTime() - TASTE.lead, t = performance.now();
+    if (me.st === "queue") { me.q = null; me.st = "wait"; }
+    reh = { off: start - realNow(), t0: t, boss: start + TASTE.boss, back: manualScene };
+    manualScene = "roof"; prevEv = ""; myMenu = null; fadeT = t; hushUntil = t + 800;
+    boss = { id: 0, hid: false, done: true, ok: false, resT: -1e9 };
+    toast("맛보기 30초 · 평일 아침 9시 옥상<br>팀장님 뜨면 <b>폰 숨기기</b>", 3600);
+  }
+  function endTaste(t) {
+    const live = roofEvent(realNow()), liveStock = !!live && live.k === "stock" && live.ph !== "closing";
+    manualScene = liveStock ? null : reh.back; reh = null; prevEv = null; myMenu = null; fadeT = t; hushUntil = t + 800;
+    boss = { id: 0, hid: false, done: true, ok: false, resT: -1e9 };
+    toast(liveStock ? "맛보기 끝<br>지금 <b>진짜 풀방</b>이 열렸어요" : `맛보기 끝<br>진짜 풀방은 <b>${rushText(realNow()).day} 08:55</b>`, 4200);
   }
   function nextScene(ms) {
     if (SCENE_FORCED) return null;
@@ -963,7 +997,32 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       tabRects.push({ k, x, y: y - 6, w, h: 32 });
     });
   }
+  let tasteRect = null;
+  const CALM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function drawTasteChip(now) {
+    const y = H - 104;
+    g.font = '700 11px "Gowun Dodum", sans-serif'; g.textAlign = "left"; g.textBaseline = "middle";
+    if (reh) {
+      const txt = "맛보기 중 · 진짜는 평일 08:55", w = g.measureText(txt).width + 20;
+      g.fillStyle = "rgba(17,22,28,.72)"; roundRect(10, y, w, 22, 11); g.fill();
+      g.fillStyle = "#ffe08a"; g.fillText(txt, 20, y + 11.5);
+      return;
+    }
+    if (SCENE_FORCED && SCENE_Q !== "roof") return;
+    if (roofEvent(now)) return; // 진짜 이벤트가 열려 있을 땐 숨김
+    const txt = "▶ 9시 옥상 풀방 맛보기", w = g.measureText(txt).width + 22;
+    if (!CALM) {
+      const p = performance.now() % 1800 / 1800;
+      g.strokeStyle = `rgba(229,56,59,${0.9 * (1 - p)})`; g.lineWidth = 2;
+      roundRect(10 - p * 5, y - p * 5, w + p * 10, 22 + p * 10, 11 + p * 5); g.stroke();
+    }
+    g.fillStyle = "#e5383b"; roundRect(10, y, w, 22, 11); g.fill();
+    g.fillStyle = "#fff"; g.fillText(txt, 21, y + 11.5);
+    tasteRect = { x: 2, y: y - 10, w: w + 18, h: 42 };
+  }
   function drawNextChip(now) {
+    drawTasteChip(now);
+    if (reh) return;
     if (manualScene && manualScene !== sceneByTime(now)) {
       const txt = `구경 중 · 지금은 ${SCENE_NAME[sceneByTime(now)]} 시간`;
       g.font = '700 11px "Gowun Dodum", sans-serif'; g.textAlign = "right"; g.textBaseline = "middle";
@@ -1088,8 +1147,9 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     const r = cv.getBoundingClientRect();
     const vx = (e.clientX - r.left) / r.width * W, vy = (e.clientY - r.top) / r.height * H;
     const hitTab = tabRects.find(r => vx >= r.x && vx <= r.x + r.w && vy >= r.y && vy <= r.y + r.h);
-    if (hitTab && !["ride", "in", "going"].includes(me.st)) { manualScene = hitTab.k === sceneByTime(clock()) ? null : hitTab.k; return; }
-    if (curScene === "roof" && vy < 74 && me.st !== "ride") { saveReceipt().catch(() => toast("저장에 실패했어요", 1600)); return; }
+    if (hitTab && !["ride", "in", "going"].includes(me.st)) { if (reh) endTaste(performance.now()); manualScene = hitTab.k === sceneByTime(clock()) ? null : hitTab.k; return; }
+    if (tasteRect && vx >= tasteRect.x && vx <= tasteRect.x + tasteRect.w && vy >= tasteRect.y && vy <= tasteRect.y + tasteRect.h) { startTaste(); return; }
+    if (curScene === "roof" && vy < 74 && me.st !== "ride" && !reh) { saveReceipt().catch(() => toast("저장에 실패했어요", 1600)); return; }
     if (wcRect && vx >= wcRect.x && vx <= wcRect.x + wcRect.w && vy >= wcRect.y && vy <= wcRect.y + wcRect.h && me.st !== "ride" && me.st !== "in") { goWc(); return; }
     // 내 캐릭터를 누르면 색 바꾸기 (사원증 줄 / 양머리 수건)
     if (me.st === "wait" || me.st === "lie") {
@@ -1267,7 +1327,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 
   // 오늘 루팡 누적 (이 기기에만, 날짜 바뀌면 0부터)
   const LUPAN_KEY = "zoopan-station-lupan";
-  const todayKey = () => new Date(clock()).toDateString();
+  const todayKey = () => new Date(realNow()).toDateString();
   let lupan = { day: todayKey(), ms: 0 }, lupanSaved = 0;
   try { const v = JSON.parse(localStorage.getItem(LUPAN_KEY) || "null"); if (v && v.day === lupan.day && v.ms > 0) lupan.ms = v.ms; } catch (e) {}
   function saveLupan() {
@@ -1287,14 +1347,15 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     curScene = sc; me.q = null; me.st = "wait"; me.tx = me.x; fadeT = t;
     cv.setAttribute("aria-label", sc === "station" ? "퇴근길 지하철 승강장. 화면을 누르면 내 캐릭터가 그 자리로 걸어가요." : sc === "roof" ? "회사 옥상. 화면을 누르면 걸어가고, 눕기 버튼으로 누울 수 있어요." : "찜질방 마루. 화면을 누르면 걸어가고, 눕기 버튼으로 누워 쉴 수 있어요.");
     $("deco").hidden = sc === "station";
-    toast(SCENE_HINT[sc], 3400); sendPresence();
+    if (t > hushUntil) toast(SCENE_HINT[sc], 3400); sendPresence();
   }
   function step(t) {
     const dt = Math.min(64, t - last); last = t;
+    if (reh && t - reh.t0 > TASTE.end) endTaste(t);
     const now = clock();
-    wcRect = null; tabRects = [];
+    wcRect = null; tabRects = []; tasteRect = null;
     // 월급루팡 타이머: 근무 시간에 이 화면을 보고 있는 동안 회사 돈이 쌓인다 (점심시간은 내 시간이라 멈춤)
-    if (schedule(now).mode === "work" && !document.hidden) { lupan.ms += dt; if (t - lupanSaved > 5000) { saveLupan(); lupanSaved = t; } }
+    if (!reh && schedule(now).mode === "work" && !document.hidden) { lupan.ms += dt; if (t - lupanSaved > 5000) { saveLupan(); lupanSaved = t; } }
     const want = sceneAt(now);
     if (want !== curScene && !["ride", "in", "going"].includes(me.st)) enterScene(want, t);
     // 열차 안: 승강장 대신 퇴근 열차 장면
@@ -1387,6 +1448,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   // 팀장님 기습: 장중 두 번, 날마다 다른 시각. 문이 열리고 3초 남짓.
   const BOSS_MS = 4000;
   function bossCam(now) {
+    if (reh) { const age = now - reh.boss; return age >= 0 && age < BOSS_MS ? { S: reh.boss, age } : null; }
     const d0 = new Date(now); d0.setHours(0, 0, 0, 0);
     for (const [key, base] of [["boss1", 541], ["boss2", 548]]) {
       const S = d0.getTime() + (base * 60 + dayHash(key, now) % 300) * 1000, age = now - S;
@@ -1469,8 +1531,9 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       drawRoof(now, dt, t);
       let head = sc.mode === "work" || sc.mode === "lunch" ? `퇴근까지 ${hms(sc.toOff)}` : sc.mode === "before" ? `출근까지 ${hms(sc.toWork)}` : "회사 옥상";
       let lines = [lu >= 1 ? `오늘 합법적 농땡이 ${comma(lu)}원어치 · 전광판 누르면 영수증` : "옥상은 오늘도 조용합니다", "옥상은 CCTV 사각지대입니다 (아마도)"];
+      if (!ev) { const r = rushText(now); lines.unshift(`평일 9시 장 시작하면 옥상 풀방 · 다음은 ${r.day} 08:55 (${r.rem} 남음)`); }
       if (ev) {
-        const L = lines[0];
+        const L = lu >= 1 ? lines[0] : lines[1]; // 풀방 중에 "조용합니다"가 흐르지 않게
         if (ev.k === "stock") {
           head = ev.ph === "pre" ? `장 시작까지 ${hms(ev.left)}` : ev.ph === "open" ? "장 시작! 옥상 풀방" : ev.ph === "leave" ? "일하는 척 모드 전환" : `장 마감까지 ${hms(ev.left)}`;
           lines = ev.ph === "pre" ? ["하나둘 옥상으로 모이는 중", L] : ev.ph === "open" ? ["전 직원 차트 확인 중", "팀장님 뜨면 폰 숨기기", L] : ev.ph === "leave" ? ["다들 자리로 흩어지는 중", L] : ["오늘 장도 곧 끝", L];
@@ -1488,7 +1551,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       drawSauna(now, dt, t);
       const night = saunaNight(now), dp = daysToPayday(now);
       const head = night ? "소등 · 조용히 쉬는 시간" : eggs.n ? `오늘 구운 계란 ${eggs.n}개` : "찜질방 채널 · 아무것도 안 하기";
-      const lines = ["속보: 오늘도 버텼다", dp === 0 ? "오늘은 월급날" : `월급날까지 ${dp}일`, "누워 있으면 1분마다 계란이 하나씩 구워져요", sc.mode === "weekend" ? "주말 · 출근 생각 금지" : "07:00 회사 옥상 개방"];
+      const lines = ["속보: 오늘도 버텼다", dp === 0 ? "오늘은 월급날" : `월급날까지 ${dp}일`, "누워 있으면 1분마다 계란이 하나씩 구워져요", sc.mode === "weekend" ? "주말 · 출근 생각 금지" : "07:00 회사 옥상 개방", `옥상 풀방은 ${rushText(now).day} 08:55 · 아래 빨간 '맛보기'로 미리 보기`];
       drawBoard(true, head, lines.join("   ·   "), dt);
     }
     // 내 걸음
