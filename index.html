@@ -980,6 +980,67 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "nongddaengi-receipt.png"; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast("영수증을 저장했어요", 1600);
   }
+  // ---------- 눈치 등급 카드: 팀장님 기습 결과를 그림으로 (숨긴 속도에 따라 등급) ----------
+  let nunchi = null, nunchiRect = null;
+  const NUNCHI = [[700, "눈치 만렙", "전생에 미어캣"], [1300, "눈치 백단", "프로 월급루팡"], [2200, "눈치 9단", "아슬아슬 세이프"], [1e9, "눈치 1단", "문 닫히기 직전에 숨김"]];
+  const nunchiGrade = n => n.ok ? NUNCHI.find(v => n.rt < v[0]) : [0, "눈치 챙김 실패", "팀장님과 눈 마주침"];
+  function drawNunchiChip() {
+    const age = nunchi ? performance.now() - nunchi.t : -1;
+    if (age < 1400 || age > 45000) return;
+    const y = H - 132, txt = `▼ 내 눈치 등급 카드 받기 · ${nunchiGrade(nunchi)[1]}`;
+    g.font = '700 11px "Gowun Dodum", sans-serif'; g.textAlign = "left"; g.textBaseline = "middle";
+    const w = g.measureText(txt).width + 22;
+    g.fillStyle = "#ffd84d"; roundRect(10, y, w, 22, 11); g.fill();
+    g.fillStyle = "#1b2329"; g.fillText(txt, 21, y + 11.5);
+    nunchiRect = { x: 2, y: y - 8, w: w + 18, h: 32 };
+  }
+  async function saveNunchi() {
+    const n = nunchi; if (!n) return;
+    const gr = nunchiGrade(n), col = n.ok ? "#1f9a4a" : "#c8372b";
+    try { await Promise.all([document.fonts.load('60px "Do Hyeon"', "눈치 만렙백단챙김실패"), document.fonts.load('30px "Nanum Gothic Coding"', "0123456789.초"), document.fonts.load('700 30px "Gowun Dodum"', "오늘의 눈치 등급")]); } catch (e) {}
+    const c = document.createElement("canvas"); c.width = 1080; c.height = 1350; const x = c.getContext("2d");
+    const rr = (X, Y, w, h, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
+    // 하늘 · 옥상 바닥
+    const sky = x.createLinearGradient(0, 0, 0, 860); sky.addColorStop(0, "#5a9ee0"); sky.addColorStop(1, "#bcdef6");
+    x.fillStyle = sky; x.fillRect(0, 0, 1080, 860);
+    x.fillStyle = "#4f9a63"; x.fillRect(0, 860, 1080, 490);
+    x.fillStyle = "#458a58"; for (let i = 0; i < 4; i++) x.fillRect(0, 960 + i * 110, 1080, 3);
+    // 전광판
+    x.fillStyle = "#05070a"; rr(60, 70, 960, 210, 24); x.fill(); x.strokeStyle = "#2b333b"; x.lineWidth = 8; x.stroke();
+    x.textBaseline = "middle"; x.textAlign = "left";
+    x.fillStyle = "#ff9f2e"; x.font = '66px "Do Hyeon", sans-serif'; x.fillText("9시 옥상 풀방 · 팀장님 기습", 104, 142);
+    x.fillStyle = "#ffc46b"; x.font = '36px "Nanum Gothic Coding", monospace';
+    x.fillText(new Date(n.at).toLocaleDateString("ko-KR") + (n.taste ? " · 맛보기 기록" : " · 실전 기록"), 106, 222);
+    // 계단실 문 + 팀장님
+    x.fillStyle = "#d9d3c7"; x.fillRect(760, 380, 320, 480);
+    x.fillStyle = "#1c2227"; x.fillRect(800, 450, 190, 410);
+    x.fillStyle = "#0b0d10"; x.beginPath(); x.arc(895, 545, 58, 0, Math.PI * 2); x.fill(); rr(826, 610, 138, 250, 34); x.fill();
+    x.fillStyle = "#fff"; x.fillRect(862, 538, 24, 7); x.fillRect(904, 538, 24, 7);
+    x.fillStyle = "#c8372b"; x.beginPath(); x.moveTo(895, 614); x.lineTo(880, 632); x.lineTo(895, 740); x.lineTo(910, 632); x.closePath(); x.fill();
+    x.textAlign = "center"; x.font = '700 34px "Gowun Dodum", sans-serif';
+    x.fillStyle = "rgba(17,22,28,.86)"; rr(785, 390, 220, 54, 27); x.fill(); x.fillStyle = "#fff"; x.fillText("팀장님 등장!", 895, 418);
+    // 결과 종이
+    x.save(); x.shadowColor = "rgba(0,0,0,.25)"; x.shadowBlur = 30; x.shadowOffsetY = 12; x.fillStyle = "#fdfdfb"; rr(60, 380, 660, 580, 30); x.fill(); x.restore();
+    x.fillStyle = "#54606b"; x.font = '700 44px "Gowun Dodum", sans-serif'; x.fillText("오늘의 눈치 등급", 390, 452);
+    x.save(); x.translate(390, 600); x.rotate(-0.09);
+    x.font = '100px "Do Hyeon", sans-serif'; const fs = Math.min(128, 100 * 520 / x.measureText(gr[1]).width);
+    x.font = `${fs}px "Do Hyeon", sans-serif`; const sw = x.measureText(gr[1]).width + 56, sh = fs + 44;
+    x.strokeStyle = col; x.lineWidth = 10; rr(-sw / 2, -sh / 2, sw, sh, 14); x.stroke();
+    x.fillStyle = col; x.fillText(gr[1], 0, 6); x.restore();
+    x.fillStyle = "#1b2329"; x.font = '50px "Nanum Gothic Coding", monospace';
+    x.fillText(n.ok ? `${(n.rt / 1000).toFixed(2)}초 만에 폰 숨김` : "폰 못 숨김 · 도장 찍힘", 390, 780);
+    x.fillStyle = "#54606b"; x.font = '700 40px "Gowun Dodum", sans-serif'; x.fillText(gr[2], 390, 868);
+    // 아래 안내
+    x.fillStyle = "#fff"; x.font = '60px "Do Hyeon", sans-serif'; x.fillText("팀장님 뜨면 폰 숨기세요", 540, 1070);
+    x.fillStyle = "#e3f3e8"; x.font = '700 36px "Gowun Dodum", sans-serif'; x.fillText("평일 08:55 회사 옥상 · 가입 없음", 540, 1144);
+    x.fillStyle = "rgba(17,22,28,.82)"; rr(170, 1202, 740, 76, 38); x.fill();
+    x.fillStyle = "#fff"; x.font = '38px "Nanum Gothic Coding", monospace'; x.fillText("seangold8888.github.io/time-price", 540, 1242);
+    const blob = await new Promise(r => c.toBlob(r, "image/png")); if (!blob) return;
+    const file = new File([blob], "nunchi-card.png", { type: "image/png" });
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "오늘의 눈치 등급" }); return; } } catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "nunchi-card.png"; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000); toast("눈치 등급 카드를 저장했어요", 1600);
+  }
   const goWc = () => { saveLupan(); location.href = "/haewoo/?from=" + curScene; };
 
   // 오른쪽 아래: 다음 장소 안내 ("다음 17:00 내시간역")
@@ -1021,7 +1082,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     tasteRect = { x: 2, y: y - 10, w: w + 18, h: 42 };
   }
   function drawNextChip(now) {
-    drawTasteChip(now);
+    drawTasteChip(now); drawNunchiChip();
     if (reh) return;
     if (manualScene && manualScene !== sceneByTime(now)) {
       const txt = `구경 중 · 지금은 ${SCENE_NAME[sceneByTime(now)]} 시간`;
@@ -1148,6 +1209,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     const vx = (e.clientX - r.left) / r.width * W, vy = (e.clientY - r.top) / r.height * H;
     const hitTab = tabRects.find(r => vx >= r.x && vx <= r.x + r.w && vy >= r.y && vy <= r.y + r.h);
     if (hitTab && !["ride", "in", "going"].includes(me.st)) { if (reh) endTaste(performance.now()); manualScene = hitTab.k === sceneByTime(clock()) ? null : hitTab.k; return; }
+    if (nunchiRect && vx >= nunchiRect.x && vx <= nunchiRect.x + nunchiRect.w && vy >= nunchiRect.y && vy <= nunchiRect.y + nunchiRect.h) { saveNunchi().catch(() => toast("저장에 실패했어요", 1600)); return; }
     if (tasteRect && vx >= tasteRect.x && vx <= tasteRect.x + tasteRect.w && vy >= tasteRect.y && vy <= tasteRect.y + tasteRect.h) { startTaste(); return; }
     if (curScene === "roof" && vy < 74 && me.st !== "ride" && !reh) { saveReceipt().catch(() => toast("저장에 실패했어요", 1600)); return; }
     if (wcRect && vx >= wcRect.x && vx <= wcRect.x + wcRect.w && vy >= wcRect.y && vy <= wcRect.y + wcRect.h && me.st !== "ride" && me.st !== "in") { goWc(); return; }
@@ -1206,7 +1268,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
 
   $("board").addEventListener("click", () => {
     if (curScene !== "station") { // 옥상·찜질방: 눕기 / 일어나기 (옥상 이벤트 땐 폰 숨기기 / 메뉴 돌리기)
-      if (boardAct === "hide") { boss.hid = true; try { navigator.vibrate && navigator.vibrate(30); } catch (e) {} return; }
+      if (boardAct === "hide") { if (!boss.hid) boss.rt = clock() - boss.id; boss.hid = true; try { navigator.vibrate && navigator.vibrate(30); } catch (e) {} return; }
       if (boardAct === "menu") { myMenu = { t0: performance.now(), pick: MENUS[Math.floor(Math.random() * MENUS.length)] }; return; }
       if (me.st === "lie") me.st = "wait";
       else if (me.st === "wait") { me.tx = me.x; me.st = "lie"; if (curScene === "sauna" && !eggs.n && !eggs.ms) toast("누워 있으면 1분마다<br>계란이 하나씩 구워져요", 2600); }
@@ -1353,7 +1415,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     const dt = Math.min(64, t - last); last = t;
     if (reh && t - reh.t0 > TASTE.end) endTaste(t);
     const now = clock();
-    wcRect = null; tabRects = []; tasteRect = null;
+    wcRect = null; tabRects = []; tasteRect = null; nunchiRect = null;
     // 월급루팡 타이머: 근무 시간에 이 화면을 보고 있는 동안 회사 돈이 쌓인다 (점심시간은 내 시간이라 멈춤)
     if (!reh && schedule(now).mode === "work" && !document.hidden) { lupan.ms += dt; if (t - lupanSaved > 5000) { saveLupan(); lupanSaved = t; } }
     const want = sceneAt(now);
@@ -1526,7 +1588,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     // 팀장님 기습
     const cam = stockOn && ev.ph === "open" ? bossCam(now) : null;
     if (cam && boss.id !== cam.S) { boss = { id: cam.S, hid: false, done: false, ok: false, resT: -1e9 }; try { navigator.vibrate && navigator.vibrate([60, 40, 60]); } catch (e) {} }
-    if (boss.id && !boss.done && (!cam || cam.age >= BOSS_MS - 600)) { boss.done = true; boss.ok = boss.hid; boss.resT = t; }
+    if (boss.id && !boss.done && (!cam || cam.age >= BOSS_MS - 600)) { boss.done = true; boss.ok = boss.hid; boss.resT = t; nunchi = { ok: boss.ok, rt: boss.rt || 0, t, taste: !!reh, at: realNow() }; }
     if (roof) {
       drawRoof(now, dt, t);
       let head = sc.mode === "work" || sc.mode === "lunch" ? `퇴근까지 ${hms(sc.toOff)}` : sc.mode === "before" ? `출근까지 ${hms(sc.toWork)}` : "회사 옥상";
@@ -1652,7 +1714,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
       const mn = myMenu && t - myMenu.t0 < 1400 ? { spin: true, txt: MENUS[Math.floor(t / 70) % MENUS.length] } : myMenu ? { spin: false, txt: myMenu.pick } : menuOf(myKey, now);
       drawMenu(hx, meY, mn);
     }
-    if (roof && boss.id && boss.done) drawStamp(hx, topY - 46, boss.ok ? "눈치 백단" : "눈치 챙김 실패", boss.ok ? "#1f9a4a" : "#c8372b", t - boss.resT);
+    if (roof && boss.id && boss.done) drawStamp(hx, topY - 46, nunchiGrade(boss)[1], boss.ok ? "#1f9a4a" : "#c8372b", t - boss.resT);
     for (const o of peers) if (o.e) { const os = depthS(o.d); drawEmote(o.st === "lie" ? o.dx * W - 25 * os : o.dx * W, depthY(o.d) - (o.st === "lie" ? 72 : 112) * os, o.e, t - o.eT); }
     // +계란 / +수혈
     g.font = '700 12px "Gowun Dodum", sans-serif'; g.textAlign = "center"; g.textBaseline = "middle";
