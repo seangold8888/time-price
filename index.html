@@ -157,6 +157,19 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     g.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
   }
   addEventListener("resize", fit); fit();
+  // 캔버스 아래 칩 줄: 아래 버튼 줄 바로 위. 안드로이드 인앱 브라우저(스레드 등)는 아래 안전영역이 커서 버튼이 높이 올라온다.
+  let chipYAt = -1e9, chipYv = 536;
+  function chipY() {
+    const n = performance.now();
+    if (n - chipYAt > 400) {
+      chipYAt = n; chipYv = H - 104;
+      try {
+        const r = document.querySelector(".hud .row").getBoundingClientRect(), c = cv.getBoundingClientRect();
+        if (r.height && c.height) chipYv = Math.min(H - 104, Math.round((r.top - c.top) * H / c.height) - 30);
+      } catch (e) {}
+    }
+    return chipYv;
+  }
 
   const C = { night: "#11161c", led: "#ff9a2e", tile: "#dfe8e4", tile2: "#d2ddd8", line: "#2fa35a", floor: "#a9adb0", floor2: "#9a9ea2", ink: "#1b2329" };
   const SKIN = ["#f1c9a5", "#e5b48a", "#c98e64", "#f6d6bb", "#d9a274", "#b97c55"];
@@ -987,7 +1000,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   function drawNunchiChip() {
     const age = nunchi ? performance.now() - nunchi.t : -1;
     if (age < 1400 || age > 45000) return;
-    const y = H - 132, txt = `▼ 내 눈치 등급 카드 받기 · ${nunchiGrade(nunchi)[1]}`;
+    const y = chipY() - (curScene === "station" ? 56 : 28), txt = `▼ 내 눈치 등급 카드 받기 · ${nunchiGrade(nunchi)[1]}`;
     g.font = '700 11px "Gowun Dodum", sans-serif'; g.textAlign = "left"; g.textBaseline = "middle";
     const w = g.measureText(txt).width + 22;
     g.fillStyle = "#ffd84d"; roundRect(10, y, w, 22, 11); g.fill();
@@ -1061,7 +1074,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
   let tasteRect = null;
   const CALM = matchMedia("(prefers-reduced-motion: reduce)").matches;
   function drawTasteChip(now) {
-    const y = H - 104;
+    const y = chipY() - (curScene === "station" ? 28 : 0); // 역은 왼쪽 아래에 혼잡도 칩이 있어 한 칸 위
     g.font = '700 11px "Gowun Dodum", sans-serif'; g.textAlign = "left"; g.textBaseline = "middle";
     if (reh) {
       const txt = "맛보기 중 · 진짜는 평일 08:55", w = g.measureText(txt).width + 20;
@@ -1087,7 +1100,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     if (manualScene && manualScene !== sceneByTime(now)) {
       const txt = `구경 중 · 지금은 ${SCENE_NAME[sceneByTime(now)]} 시간`;
       g.font = '700 11px "Gowun Dodum", sans-serif'; g.textAlign = "right"; g.textBaseline = "middle";
-      const w = g.measureText(txt).width, y = H - 104;
+      const w = g.measureText(txt).width, y = chipY();
       g.fillStyle = "rgba(17,22,28,.62)"; roundRect(W - 10 - w - 20, y, w + 20, 22, 11); g.fill();
       g.fillStyle = "#bff5cf"; g.fillText(txt, W - 20, y + 11.5); g.textAlign = "left";
       return;
@@ -1096,7 +1109,7 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     const d = new Date(n.at), same = new Date(now).toDateString() === d.toDateString();
     const txt = `다음 ${same ? "" : "일월화수목금토"[d.getDay()] + " "}${String(d.getHours()).padStart(2, "0")}:00 ${SCENE_NAME[n.name]}`;
     g.font = '700 11px "Gowun Dodum", sans-serif'; g.textAlign = "right"; g.textBaseline = "middle";
-    const w = g.measureText(txt).width, y = H - 104;
+    const w = g.measureText(txt).width, y = chipY();
     g.fillStyle = "rgba(17,22,28,.62)"; roundRect(W - 10 - w - 20, y, w + 20, 22, 11); g.fill();
     g.fillStyle = "#fff"; g.fillText(txt, W - 20, y + 11.5); g.textAlign = "left";
   }
@@ -1819,9 +1832,9 @@ input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 
     // 혼잡도 (바닥 왼쪽 아래, 실제 시각 기준)
     g.font = '700 11px "Gowun Dodum", sans-serif'; g.textAlign = "left"; g.textBaseline = "middle";
     const cLabel = tr.night ? "운행 종료 · 첫차 05:30" : crowdTitle(now);
-    { const w = g.measureText(cLabel).width; const y = H - 104; g.fillStyle = "rgba(17,22,28,.62)"; roundRect(10, y, w + 20, 22, 11); g.fill(); g.fillStyle = crowdLevel(now) >= 0.85 && !tr.night ? "#ffb4a6" : "#fff"; g.fillText(cLabel, 20, y + 11.5); }
+    { const w = g.measureText(cLabel).width; const y = chipY(); g.fillStyle = "rgba(17,22,28,.62)"; roundRect(10, y, w + 20, 22, 11); g.fill(); g.fillStyle = crowdLevel(now) >= 0.85 && !tr.night ? "#ffb4a6" : "#fff"; g.fillText(cLabel, 20, y + 11.5); }
     drawNextChip(now);
-    drawWc(W - 86, H - 140, t); drawTabs(now);
+    drawWc(W - 86, Math.min(H - 140, chipY() - 36), t); drawTabs(now);
 
     // 열차 상태 변화
     if (tr.phase !== prevPhase) {
